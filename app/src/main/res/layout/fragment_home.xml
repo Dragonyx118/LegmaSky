@@ -55,11 +55,12 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:padding="8dp" />
+                <!-- Popola dinamicamente da codice con item_hourly.xml -->
 
             </HorizontalScrollView>
         </androidx.cardview.widget.CardView>
 
-        <!-- Griglia metriche 2x2 -->
+        <!-- Griglia metriche 2x2, stile screenshot -->
         <GridLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -75,15 +76,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        style="@style/SkyTextLabel"
-                        android:text="Umidità" />
+                    <TextView style="@style/SkyTextLabel" android:text="Umidità" />
                     <TextView
                         android:id="@+id/humidityValue"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
                         style="@style/SkyTextTitle"
                         android:text="67%" />
                 </LinearLayout>
@@ -98,15 +93,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        style="@style/SkyTextLabel"
-                        android:text="Percepita" />
+                    <TextView style="@style/SkyTextLabel" android:text="Percepita" />
                     <TextView
                         android:id="@+id/feelsLikeValue"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
                         style="@style/SkyTextTitle"
                         android:text="18°" />
                 </LinearLayout>
@@ -121,15 +110,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        style="@style/SkyTextLabel"
-                        android:text="Vento" />
+                    <TextView style="@style/SkyTextLabel" android:text="Vento" />
                     <TextView
                         android:id="@+id/windValue"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
                         style="@style/SkyTextTitle"
                         android:text="7,5 km/h" />
                 </LinearLayout>
@@ -144,15 +127,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        style="@style/SkyTextLabel"
-                        android:text="Pressione" />
+                    <TextView style="@style/SkyTextLabel" android:text="Pressione" />
                     <TextView
                         android:id="@+id/pressureValue"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
                         style="@style/SkyTextTitle"
                         android:text="1013 hPa" />
                 </LinearLayout>

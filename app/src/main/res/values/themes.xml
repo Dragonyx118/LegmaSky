@@ -1,9 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.LegmaSky" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    <style name="Theme.LegmaSky" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/accent_gold</item>
+        <item name="colorPrimaryVariant">@color/accent_gold_dark</item>
+        <item name="colorOnPrimary">@color/sky_bg_top</item>
+
+        <item name="colorSecondary">@color/cloud_lavender</item>
+        <item name="colorOnSecondary">@color/sky_bg_top</item>
+
+        <item name="android:windowBackground">@color/sky_bg_top</item>
+        <item name="android:statusBarColor">@color/sky_bg_top</item>
+        <item name="android:navigationBarColor">@color/sky_bg_top</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+
+        <item name="cardViewStyle">@style/SkyCard</item>
     </style>
 
-    <style name="Theme.LegmaSky" parent="Base.Theme.LegmaSky" />
+    <style name="SkyCard" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/card_surface</item>
+        <item name="cardCornerRadius">20dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="contentPadding">16dp</item>
+    </style>
+
+    <style name="SkyTextTitle">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="SkyTextLabel">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <style name="SkyTextValueBig">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">64sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>

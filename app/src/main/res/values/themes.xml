@@ -1,5 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Stile Nome Città -->
+    <style name="WeatherCityTitle">
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">28sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <!-- Stile Temperatura Principale Imponente -->
+    <style name="WeatherMainTemperature">
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">110sp</item>
+        <item name="android:fontFamily">sans-serif-thin</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <!-- Stile Descrizione Meteo e Min/Max -->
+    <style name="WeatherSubDetails">
+        <item name="android:textColor">#E2E8F0</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
     <style name="Theme.LegmaSky" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/accent_gold</item>
         <item name="colorPrimaryVariant">@color/accent_gold_dark</item>
@@ -8,9 +30,16 @@
         <item name="colorSecondary">@color/cloud_lavender</item>
         <item name="colorOnSecondary">@color/sky_bg_top</item>
 
-        <item name="android:windowBackground">@color/sky_bg_top</item>
-        <item name="android:statusBarColor">@color/sky_bg_top</item>
-        <item name="android:navigationBarColor">@color/sky_bg_top</item>
+        <!-- Sfondo finestra e barre di sistema TRASPARENTI -->
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+
+        <!-- Disattiva il velo scuro forzato di sicurezza da Android 10+ -->
+        <item name="android:enforceStatusBarContrast" tools:targetApi="q">false</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="q">false</item>
+
         <item name="android:windowLightStatusBar">false</item>
 
         <item name="android:textColorPrimary">@color/text_primary</item>

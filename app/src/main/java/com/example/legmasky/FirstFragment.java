@@ -10,7 +10,6 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.palette.graphics.Palette;
 
@@ -36,15 +35,9 @@ public class FirstFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Status bar trasparente
-        if (getActivity() != null) {
-            getActivity().getWindow().setStatusBarColor(Color.TRANSPARENT);
-        }
-
-        // Imposta sfondo dinamico e recupera il colore dominante per la toolbar
         updateDynamicBackground(false, false);
 
-        // Gestione dissolvenza automatica contenuto esteso durante lo scroll
+        // Gestione dissolvenza allo scroll
         binding.appBarLayout.addOnOffsetChangedListener(new AppBarLayout.OnOffsetChangedListener() {
             @Override
             public void onOffsetChanged(AppBarLayout appBarLayout, int verticalOffset) {
@@ -53,10 +46,10 @@ public class FirstFragment extends Fragment {
 
                 float percentage = (float) Math.abs(verticalOffset) / (float) totalScrollRange;
 
-                // Fai sfumare il testo centrale in uscita mentre si scorre
+                // Fai sfumare il testo centrale in uscita
                 binding.expandedContent.setAlpha(1f - (percentage * 1.5f));
 
-                // Attiva il titolo nella Toolbar solo quando è quasi del tutto collassato
+                // Mostra il titolo nella Toolbar quando collassato
                 if (percentage >= 0.8f) {
                     binding.collapsingToolbar.setTitleEnabled(true);
                 } else {
@@ -94,18 +87,14 @@ public class FirstFragment extends Fragment {
             backgroundRes = R.drawable.bg_night_clear;
         }
 
-        // Imposta l'immagine
         binding.backgroundImage.setImageResource(backgroundRes);
 
-        // Estrai il colore dominante della parte superiore dell'immagine per la Toolbar
+        // Estrae il colore superiore dall'immagine per la Toolbar durante il collasso
         Bitmap bitmap = BitmapFactory.decodeResource(getResources(), backgroundRes);
         if (bitmap != null) {
             Palette.from(bitmap).generate(palette -> {
                 if (palette != null) {
-                    // Prendi il colore dominante o scuro della parte alta
                     int topColor = palette.getDarkMutedColor(palette.getDominantColor(Color.TRANSPARENT));
-
-                    // Applica il colore al CollapsingToolbar quando si chiude
                     binding.collapsingToolbar.setContentScrimColor(topColor);
                     binding.collapsingToolbar.setStatusBarScrimColor(topColor);
                 }

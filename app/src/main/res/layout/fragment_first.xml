@@ -169,7 +169,6 @@
                             android:textSize="14sp" />
                     </RelativeLayout>
 
-                    <!-- Righe Previsioni -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -269,6 +268,7 @@
                             android:textSize="14sp" />
 
                         <TextView
+                            android:id="@+id/tvUvValue"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_below="@id/lblUv"
@@ -311,6 +311,7 @@
                             android:textSize="14sp" />
 
                         <TextView
+                            android:id="@+id/tvHumidityValue"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_below="@id/lblHumidity"
@@ -328,7 +329,7 @@
                     </RelativeLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- CARD PERCEPTA -->
+                <!-- CARD PERCEPITA -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="0dp"
                     android:layout_height="155dp"
@@ -353,6 +354,7 @@
                             android:textSize="14sp" />
 
                         <TextView
+                            android:id="@+id/tvFeelsLikeValue"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_below="@id/lblFeelsLike"
@@ -395,6 +397,7 @@
                             android:textSize="14sp" />
 
                         <TextView
+                            android:id="@+id/tvWindValue"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_below="@id/lblWindDir"
@@ -415,6 +418,50 @@
                 </com.google.android.material.card.MaterialCardView>
 
             </GridLayout>
+
+            <!-- CARD PRESSIONE ESTESA -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="6dp"
+                app:cardBackgroundColor="#252E3A6B"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="18dp">
+
+                    <TextView
+                        android:id="@+id/lblPressure"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Pressione"
+                        android:textColor="#A8AFD1"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/tvPressureValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/lblPressure"
+                        android:layout_marginTop="4dp"
+                        android:text="1013 hPa"
+                        android:textColor="@android:color/white"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:layout_alignParentBottom="true"
+                        android:layout_alignParentEnd="true"
+                        android:src="@android:drawable/ic_menu_compass"
+                        app:tint="#5B9BF0" />
+                </RelativeLayout>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- CARD AQI ESTESA IN BASSO -->
             <com.google.android.material.card.MaterialCardView

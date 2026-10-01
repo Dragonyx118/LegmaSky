@@ -14,11 +14,19 @@ import androidx.fragment.app.Fragment;
 import androidx.palette.graphics.Palette;
 
 import com.example.legmasky.databinding.FragmentFirstBinding;
+import com.example.legmasky.model.StationData;
+import com.example.legmasky.network.ApiClient;
 import com.google.android.material.appbar.AppBarLayout;
 
 import java.util.Calendar;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class FirstFragment extends Fragment {
+
+    private static final String STATION_ID = "station-001";
 
     private FragmentFirstBinding binding;
 
@@ -35,7 +43,10 @@ public class FirstFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        // Sfondo provvisorio finché non arrivano i dati reali
         updateDynamicBackground(false, false);
+
+        fetchWeatherData();
 
         // Gestione dissolvenza allo scroll
         binding.appBarLayout.addOnOffsetChangedListener(new AppBarLayout.OnOffsetChangedListener() {
@@ -46,10 +57,8 @@ public class FirstFragment extends Fragment {
 
                 float percentage = (float) Math.abs(verticalOffset) / (float) totalScrollRange;
 
-                // Fai sfumare il testo centrale in uscita
                 binding.expandedContent.setAlpha(1f - (percentage * 1.5f));
 
-                // Mostra il titolo nella Toolbar quando collassato
                 if (percentage >= 0.8f) {
                     binding.collapsingToolbar.setTitleEnabled(true);
                 } else {
@@ -57,6 +66,53 @@ public class FirstFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private void fetchWeatherData() {
+        ApiClient.getApi().getLatest(STATION_ID, "base").enqueue(new Callback<StationData>() {
+            @Override
+            public void onResponse(Call<StationData> call, Response<StationData> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().data != null) {
+                    bindWeatherData(response.body().data);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<StationData> call, Throwable t) {
+                // TODO: mostra stato di errore (es. Snackbar o testo "Impossibile caricare i dati")
+            }
+        });
+    }
+
+    private void bindWeatherData(StationData.LastData data) {
+        if (binding == null) return;
+        binding.tvPressureValue.setText(Math.round(data.pressure) + " hPa");
+
+        // Nome stazione statico: l'API non fornisce un nome leggibile, solo station_id
+        binding.tvCityName.setText("Cascina Dossena");
+        binding.tvLocationSub.setText("Stazione " + STATION_ID);
+
+        binding.tvMainTemperature.setText(Math.round(data.temperature) + "°");
+        binding.tvConditionAndMinMax.setText("Pressione " + data.pressure + " hPa");
+
+        binding.tvHumidityValue.setText(Math.round(data.humidity) + "%");
+        binding.tvWindValue.setText(String.valueOf(data.wind_speed));
+        binding.lblWindDir.setText(windDirectionLabel(data.wind_direction));
+
+        // UV, AQI, Percepita: non disponibili dal backend per ora — nascondiamo le relative card
+        // invece di mostrare dati finti. Quando colleghi il modulo mod-air o calcoli la percepita,
+        // puoi rimuovere queste righe e popolare i valori normalmente.
+        binding.tvUvValue.setText("N/D");
+        binding.tvFeelsLikeValue.setText("N/D");
+
+        // Niente info meteo (sereno/pioggia/nuvoloso) dal backend attuale: sfondo resta legato solo all'ora
+        updateDynamicBackground(false, false);
+    }
+
+    private String windDirectionLabel(double degrees) {
+        String[] dirs = {"Nord", "Nord-est", "Est", "Sud-est", "Sud", "Sud-ovest", "Ovest", "Nord-ovest"};
+        int index = (int) Math.round(degrees / 45.0) % 8;
+        return dirs[index];
     }
 
     private void updateDynamicBackground(boolean isCloudy, boolean isFoggy) {
@@ -89,7 +145,6 @@ public class FirstFragment extends Fragment {
 
         binding.backgroundImage.setImageResource(backgroundRes);
 
-        // Estrae il colore superiore dall'immagine per la Toolbar durante il collasso
         Bitmap bitmap = BitmapFactory.decodeResource(getResources(), backgroundRes);
         if (bitmap != null) {
             Palette.from(bitmap).generate(palette -> {

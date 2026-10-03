@@ -1,6 +1,7 @@
 package com.example.legmasky;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -37,12 +38,21 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+import android.os.Handler;
+import android.os.Looper;
+import com.example.legmasky.model.ForecastResponse;
+
 public class FirstFragment extends Fragment {
 
     private static final String STATION_ID = "station-001";
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 100;
 
     private FragmentFirstBinding binding;
+
+    private Handler refreshHandler;
+    private Runnable refreshRunnable;
+    private static final long REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minuti
+
     private FusedLocationProviderClient fusedLocationClient;
 
     @Override
@@ -54,6 +64,31 @@ public class FirstFragment extends Fragment {
         return binding.getRoot();
     }
 
+    private void fetchForecast() {
+        ApiClient.getApi().getForecast(STATION_ID, "base").enqueue(new Callback<ForecastResponse>() {
+            @Override
+            public void onResponse(Call<ForecastResponse> call, Response<ForecastResponse> response) {
+                if (response.isSuccessful() && response.body() != null
+                        && response.body().success && response.body().forecast != null) {
+                    bindForecast(response.body().forecast);
+                } else {
+                    android.util.Log.e("LegmaSky", "Forecast non disponibile");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ForecastResponse> call, Throwable t) {
+                android.util.Log.e("LegmaSky", "Errore chiamata forecast: " + t.getMessage(), t);
+            }
+        });
+    }
+
+    private void bindForecast(ForecastResponse.Forecast f) {
+        if (binding == null) return;
+        binding.tvConditionAndMinMax.setText(f.icon + " " + f.label);
+    }
+
+    @SuppressLint("SetTextI18n")
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -68,6 +103,8 @@ public class FirstFragment extends Fragment {
 
         checkPermissionAndFetchLocation();
         fetchWeatherData();
+        startAutoRefresh();
+        fetchForecast();
 
         // Gestione dissolvenza allo scroll
         binding.appBarLayout.addOnOffsetChangedListener(new AppBarLayout.OnOffsetChangedListener() {
@@ -89,6 +126,7 @@ public class FirstFragment extends Fragment {
         });
     }
 
+    @SuppressLint("SetTextI18n")
     private void checkPermissionAndFetchLocation() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -108,6 +146,7 @@ public class FirstFragment extends Fragment {
         });
     }
 
+    @SuppressLint("SetTextI18n")
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -120,6 +159,7 @@ public class FirstFragment extends Fragment {
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private void resolveCityName(double lat, double lon) {
         // Geocoder fa lavoro di rete/CPU: va eseguito fuori dal thread principale
         new Thread(() -> {
@@ -130,7 +170,7 @@ public class FirstFragment extends Fragment {
                 String cityName = "Posizione sconosciuta";
                 if (addresses != null && !addresses.isEmpty()) {
                     Address address = addresses.get(0);
-                    // locality = città; fallback su subAdminArea (es. provincia) se la città manca
+                    // Locality = città; fallback su subAdminArea (es. Provincia) se la città manca
                     cityName = address.getLocality() != null ? address.getLocality()
                             : address.getSubAdminArea() != null ? address.getSubAdminArea()
                               : "Posizione sconosciuta";
@@ -182,6 +222,20 @@ public class FirstFragment extends Fragment {
         });
     }
 
+    private void startAutoRefresh() {
+        refreshHandler = new Handler(Looper.getMainLooper());
+        refreshRunnable = new Runnable() {
+            @Override
+            public void run() {
+                fetchWeatherData();
+                fetchForecast();
+                refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
+            }
+        };
+        refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL_MS);
+    }
+
+    @SuppressLint("SetTextI18n")
     private void showStaleDataWarning() {
         long lastUpdate = WeatherCache.getLastUpdateTimestamp(requireContext());
         if (lastUpdate > 0 && binding != null) {
@@ -190,6 +244,9 @@ public class FirstFragment extends Fragment {
         }
     }
 
+
+
+    @SuppressLint("SetTextI18n")
     private void bindWeatherData(StationData.LastData data, boolean isFromCache) {
         if (binding == null) return;
         binding.tvPressureValue.setText(Math.round(data.pressure) + " hPa");
@@ -282,9 +339,14 @@ public class FirstFragment extends Fragment {
         return "night";
     }
 
+
+
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        if (refreshHandler != null && refreshRunnable != null) {
+            refreshHandler.removeCallbacks(refreshRunnable);
+        }
         binding = null;
     }
 }

@@ -33,6 +33,10 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
 public class FirstFragment extends Fragment {
 
     private static final String STATION_ID = "station-001";
@@ -150,33 +154,52 @@ public class FirstFragment extends Fragment {
     }
 
     private void fetchWeatherData() {
+        // Mostra subito l'ultimo dato salvato, mentre aspetti la risposta dal server
+        StationData.LastData cached = WeatherCache.load(requireContext());
+        if (cached != null) {
+            bindWeatherData(cached, true);
+        }
+
         ApiClient.getApi().getLatest(STATION_ID, "base").enqueue(new Callback<StationData>() {
             @Override
             public void onResponse(Call<StationData> call, Response<StationData> response) {
                 android.util.Log.d("LegmaSky", "Risposta HTTP: " + response.code());
                 if (response.isSuccessful() && response.body() != null && response.body().data != null) {
-                    bindWeatherData(response.body().data);
+                    StationData.LastData data = response.body().data;
+                    WeatherCache.save(requireContext(), data);
+                    bindWeatherData(data, false);
                 } else {
-                    android.util.Log.e("LegmaSky", "Risposta non valida o dati nulli. Body: " + response.body());
+                    android.util.Log.e("LegmaSky", "Risposta non valida. Mantengo ultimi dati in cache.");
+                    showStaleDataWarning();
                 }
             }
 
             @Override
             public void onFailure(Call<StationData> call, Throwable t) {
                 android.util.Log.e("LegmaSky", "Errore chiamata API: " + t.getMessage(), t);
+                showStaleDataWarning();
             }
         });
     }
 
-    private void bindWeatherData(StationData.LastData data) {
+    private void showStaleDataWarning() {
+        long lastUpdate = WeatherCache.getLastUpdateTimestamp(requireContext());
+        if (lastUpdate > 0 && binding != null) {
+            String time = new SimpleDateFormat("HH:mm", Locale.ITALIAN).format(new Date(lastUpdate));
+            binding.tvConditionAndMinMax.setText("Dati non aggiornati (ultimo: " + time + ")");
+        }
+    }
+
+    private void bindWeatherData(StationData.LastData data, boolean isFromCache) {
         if (binding == null) return;
         binding.tvPressureValue.setText(Math.round(data.pressure) + " hPa");
 
-        // Nome città ora viene dal GPS (resolveCityName), non più hardcoded qui
         binding.tvLocationSub.setText("Stazione " + STATION_ID);
-
         binding.tvMainTemperature.setText(String.format("%.1f°", data.temperature));
-        binding.tvConditionAndMinMax.setText("Pressione " + data.pressure + " hPa");
+
+        if (!isFromCache) {
+            binding.tvConditionAndMinMax.setText("Pressione " + Math.round(data.pressure) + " hPa");
+        }
 
         binding.tvHumidityValue.setText(Math.round(data.humidity) + "%");
         binding.tvWindValue.setText(String.valueOf(data.wind_speed));

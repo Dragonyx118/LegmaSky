@@ -1,8 +1,12 @@
 package com.example.legmasky;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.location.Address;
+import android.location.Geocoder;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -10,15 +14,20 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.palette.graphics.Palette;
 
 import com.example.legmasky.databinding.FragmentFirstBinding;
 import com.example.legmasky.model.StationData;
 import com.example.legmasky.network.ApiClient;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.material.appbar.AppBarLayout;
 
 import java.util.Calendar;
+import java.util.List;
+import java.util.Locale;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -27,8 +36,10 @@ import retrofit2.Response;
 public class FirstFragment extends Fragment {
 
     private static final String STATION_ID = "station-001";
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 100;
 
     private FragmentFirstBinding binding;
+    private FusedLocationProviderClient fusedLocationClient;
 
     @Override
     public View onCreateView(
@@ -43,9 +54,15 @@ public class FirstFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext());
+
+        // Nome città provvisorio finché il GPS non risponde
+        binding.tvCityName.setText("Posizione...");
+
         // Sfondo provvisorio finché non arrivano i dati reali
         updateDynamicBackground(false, false);
 
+        checkPermissionAndFetchLocation();
         fetchWeatherData();
 
         // Gestione dissolvenza allo scroll
@@ -68,18 +85,85 @@ public class FirstFragment extends Fragment {
         });
     }
 
+    private void checkPermissionAndFetchLocation() {
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST_CODE);
+            return;
+        }
+        fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
+            if (location != null) {
+                resolveCityName(location.getLatitude(), location.getLongitude());
+            } else {
+                android.util.Log.e("LegmaSky", "Location nulla: GPS non ancora disponibile o disattivato");
+                if (binding != null) binding.tvCityName.setText("Posizione non disponibile");
+            }
+        }).addOnFailureListener(e -> {
+            android.util.Log.e("LegmaSky", "Errore ottenimento posizione: " + e.getMessage(), e);
+            if (binding != null) binding.tvCityName.setText("Posizione non disponibile");
+        });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                checkPermissionAndFetchLocation();
+            } else {
+                if (binding != null) binding.tvCityName.setText("Permesso posizione negato");
+            }
+        }
+    }
+
+    private void resolveCityName(double lat, double lon) {
+        // Geocoder fa lavoro di rete/CPU: va eseguito fuori dal thread principale
+        new Thread(() -> {
+            try {
+                Geocoder geocoder = new Geocoder(requireContext(), Locale.ITALIAN);
+                List<Address> addresses = geocoder.getFromLocation(lat, lon, 1);
+
+                String cityName = "Posizione sconosciuta";
+                if (addresses != null && !addresses.isEmpty()) {
+                    Address address = addresses.get(0);
+                    // locality = città; fallback su subAdminArea (es. provincia) se la città manca
+                    cityName = address.getLocality() != null ? address.getLocality()
+                            : address.getSubAdminArea() != null ? address.getSubAdminArea()
+                              : "Posizione sconosciuta";
+                }
+
+                String finalCityName = cityName;
+                if (getActivity() != null) {
+                    requireActivity().runOnUiThread(() -> {
+                        if (binding != null) binding.tvCityName.setText(finalCityName);
+                    });
+                }
+            } catch (Exception e) {
+                android.util.Log.e("LegmaSky", "Errore geocoding: " + e.getMessage(), e);
+                if (getActivity() != null) {
+                    requireActivity().runOnUiThread(() -> {
+                        if (binding != null) binding.tvCityName.setText("Posizione sconosciuta");
+                    });
+                }
+            }
+        }).start();
+    }
+
     private void fetchWeatherData() {
         ApiClient.getApi().getLatest(STATION_ID, "base").enqueue(new Callback<StationData>() {
             @Override
             public void onResponse(Call<StationData> call, Response<StationData> response) {
+                android.util.Log.d("LegmaSky", "Risposta HTTP: " + response.code());
                 if (response.isSuccessful() && response.body() != null && response.body().data != null) {
                     bindWeatherData(response.body().data);
+                } else {
+                    android.util.Log.e("LegmaSky", "Risposta non valida o dati nulli. Body: " + response.body());
                 }
             }
 
             @Override
             public void onFailure(Call<StationData> call, Throwable t) {
-                // TODO: mostra stato di errore (es. Snackbar o testo "Impossibile caricare i dati")
+                android.util.Log.e("LegmaSky", "Errore chiamata API: " + t.getMessage(), t);
             }
         });
     }
@@ -88,24 +172,19 @@ public class FirstFragment extends Fragment {
         if (binding == null) return;
         binding.tvPressureValue.setText(Math.round(data.pressure) + " hPa");
 
-        // Nome stazione statico: l'API non fornisce un nome leggibile, solo station_id
-        binding.tvCityName.setText("Cascina Dossena");
+        // Nome città ora viene dal GPS (resolveCityName), non più hardcoded qui
         binding.tvLocationSub.setText("Stazione " + STATION_ID);
 
-        binding.tvMainTemperature.setText(Math.round(data.temperature) + "°");
+        binding.tvMainTemperature.setText(String.format("%.1f°", data.temperature));
         binding.tvConditionAndMinMax.setText("Pressione " + data.pressure + " hPa");
 
         binding.tvHumidityValue.setText(Math.round(data.humidity) + "%");
         binding.tvWindValue.setText(String.valueOf(data.wind_speed));
         binding.lblWindDir.setText(windDirectionLabel(data.wind_direction));
 
-        // UV, AQI, Percepita: non disponibili dal backend per ora — nascondiamo le relative card
-        // invece di mostrare dati finti. Quando colleghi il modulo mod-air o calcoli la percepita,
-        // puoi rimuovere queste righe e popolare i valori normalmente.
         binding.tvUvValue.setText("N/D");
         binding.tvFeelsLikeValue.setText("N/D");
 
-        // Niente info meteo (sereno/pioggia/nuvoloso) dal backend attuale: sfondo resta legato solo all'ora
         updateDynamicBackground(false, false);
     }
 
@@ -120,19 +199,16 @@ public class FirstFragment extends Fragment {
 
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
+        int month = calendar.get(Calendar.MONTH); // 0 = Gennaio, 11 = Dicembre
 
         int backgroundRes;
 
-        if (isFoggy) {
-            backgroundRes = R.drawable.bg_winter_foggy;
-        } else if (isCloudy) {
-            backgroundRes = R.drawable.bg_cloudy;
-        } else if (hour >= 5 && hour <= 6) {
+        if (hour >= 5 && hour <= 6) {
             backgroundRes = R.drawable.bg_sunrise_clear;
         } else if (hour >= 7 && hour <= 8) {
             backgroundRes = R.drawable.bg_morning_cloudy;
         } else if (hour >= 9 && hour <= 17) {
-            backgroundRes = R.drawable.bg_summer_clear;
+            backgroundRes = getDayBackgroundBySeason(month);
         } else if (hour >= 18 && hour <= 19) {
             backgroundRes = R.drawable.bg_first_sunset_clear;
         } else if (hour == 20) {
@@ -155,6 +231,32 @@ public class FirstFragment extends Fragment {
                 }
             });
         }
+    }
+
+    private int getDayBackgroundBySeason(int month) {
+        // month: 0=Gen, 1=Feb, ... 11=Dic
+        if (month == 11 || month == 0 || month == 1) {
+            return R.drawable.bg_winter_foggy; // inverno
+        } else if (month >= 8 && month <= 10) {
+            return R.drawable.bg_autumn_clear; // autunno
+        } else {
+            return R.drawable.bg_summer_clear; // primavera + estate (nessun asset "spring" ancora)
+        }
+    }
+
+    private String getSeason(int month) {
+        // month: 0=Gen, 1=Feb, ... 11=Dic
+        if (month == 11 || month == 0 || month == 1) return "winter";
+        if (month >= 2 && month <= 4) return "spring";
+        if (month >= 5 && month <= 7) return "summer";
+        return "autumn"; // mesi 8, 9, 10
+    }
+
+    private String getTimeOfDay(int hour) {
+        if (hour >= 6 && hour < 10) return "morning";
+        if (hour >= 10 && hour < 18) return "day";
+        if (hour >= 18 && hour < 21) return "evening";
+        return "night";
     }
 
     @Override

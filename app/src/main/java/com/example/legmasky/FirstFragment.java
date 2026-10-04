@@ -13,6 +13,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.core.graphics.ColorUtils;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
@@ -279,7 +280,7 @@ public class FirstFragment extends Fragment {
 
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
-        int month = calendar.get(Calendar.MONTH); // 0 = Gennaio, 11 = Dicembre
+        int month = calendar.get(Calendar.MONTH);
 
         int backgroundRes;
 
@@ -304,11 +305,20 @@ public class FirstFragment extends Fragment {
         Bitmap bitmap = BitmapFactory.decodeResource(getResources(), backgroundRes);
         if (bitmap != null) {
             Palette.from(bitmap).generate(palette -> {
-                if (palette != null) {
-                    int topColor = palette.getDarkMutedColor(palette.getDominantColor(Color.TRANSPARENT));
-                    binding.collapsingToolbar.setContentScrimColor(topColor);
-                    binding.collapsingToolbar.setStatusBarScrimColor(topColor);
-                }
+                if (palette == null || binding == null) return;
+
+                int topColor = palette.getDarkMutedColor(palette.getDominantColor(Color.TRANSPARENT));
+                binding.collapsingToolbar.setContentScrimColor(topColor);
+                binding.collapsingToolbar.setStatusBarScrimColor(topColor);
+
+                int dominant = palette.getDominantColor(Color.WHITE);
+                double luminance = ColorUtils.calculateLuminance(dominant);
+                int textColor = luminance > 0.5 ? Color.BLACK : Color.WHITE;
+
+                binding.tvCityName.setTextColor(textColor);
+                binding.tvMainTemperature.setTextColor(textColor);
+                binding.tvConditionAndMinMax.setTextColor(textColor);
+                binding.tvLocationSub.setTextColor(textColor);
             });
         }
     }

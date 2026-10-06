@@ -109,28 +109,32 @@ public class FirstFragment extends Fragment {
         binding.alertsContainer.removeAllViews();
 
         if (alerts == null || alerts.isEmpty()) {
-            binding.alertsScroll.setVisibility(View.GONE);
+            binding.alertsContainer.setVisibility(View.GONE);
             return;
         }
 
-        binding.alertsScroll.setVisibility(View.VISIBLE);
+        binding.alertsContainer.setVisibility(View.VISIBLE);
 
         for (OfficialAlertsResponse.Alert alert : alerts) {
             LinearLayout chip = new LinearLayout(requireContext());
             chip.setOrientation(LinearLayout.HORIZONTAL);
             chip.setGravity(android.view.Gravity.CENTER_VERTICAL);
-            chip.setPadding(28, 14, 28, 14);
+            chip.setPadding(28, 20, 28, 20);
 
             LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            chipParams.setMarginEnd(16);
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            chipParams.setMargins(0, 0, 0, 10);
             chip.setLayoutParams(chipParams);
 
             chip.setBackgroundResource(R.drawable.bg_badge_rounded);
             chip.getBackground().mutate().setTint(colorForAlert(alert.color));
 
             TextView tv = new TextView(requireContext());
-            tv.setText(iconForAlert(alert.color) + " " + alert.title);
+            String text = iconForAlert(alert.color) + " " + alert.title;
+            if (alert.zone != null && !alert.zone.isEmpty()) {
+                text += " — " + alert.zone;
+            }
+            tv.setText(text);
             tv.setTextColor(Color.WHITE);
             tv.setTextSize(13f);
 

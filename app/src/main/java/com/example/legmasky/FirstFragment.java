@@ -9,42 +9,39 @@ import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
-import androidx.core.graphics.ColorUtils;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.ColorUtils;
 import androidx.fragment.app.Fragment;
 import androidx.palette.graphics.Palette;
 
 import com.example.legmasky.databinding.FragmentFirstBinding;
+import com.example.legmasky.model.ForecastResponse;
+import com.example.legmasky.model.OfficialAlertsResponse;
 import com.example.legmasky.model.StationData;
 import com.example.legmasky.network.ApiClient;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.material.appbar.AppBarLayout;
 
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import java.util.List;
-import com.example.legmasky.model.OfficialAlertsResponse;
-
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
-import android.os.Handler;
-import android.os.Looper;
-import com.example.legmasky.model.ForecastResponse;
 
 public class FirstFragment extends Fragment {
 
@@ -53,9 +50,15 @@ public class FirstFragment extends Fragment {
 
     private FragmentFirstBinding binding;
 
+    // Timer per dati meteo di base e previsioni (5 minuti)
     private Handler refreshHandler;
     private Runnable refreshRunnable;
-    private static final long REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minuti
+    private static final long REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+
+    // Timer dedicato ad alta frequenza per le allerte meteo (1 minuto)
+    private Handler alertsRefreshHandler;
+    private Runnable alertsRefreshRunnable;
+    private static final long ALERTS_REFRESH_INTERVAL_MS = 1 * 60 * 1000;
 
     private FusedLocationProviderClient fusedLocationClient;
 
@@ -68,37 +71,72 @@ public class FirstFragment extends Fragment {
         return binding.getRoot();
     }
 
+    @SuppressLint("SetTextI18n")
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext());
+
+        // Nome città provvisorio finché il GPS non risponde
+        binding.tvCityName.setText("Posizione...");
+
+        // Sfondo provvisorio finché non arrivano i dati reali
+        updateDynamicBackground(false, false);
+
+        checkPermissionAndFetchLocation();
+
+        // 1. Caricamento immediato da Cache locale prima della rete
+        List<OfficialAlertsResponse.Alert> cachedAlerts = AlertsCache.load(requireContext());
+        if (cachedAlerts != null) {
+            bindOfficialAlerts(cachedAlerts);
+        }
+
+        fetchWeatherData();
+        fetchForecast();
+
+        // 2. Avvio dei timer separati per aggiornamento automatico
+        startAutoRefresh();
+        startAlertsAutoRefresh();
+
+        // Gestione dissolvenza allo scroll
+        binding.appBarLayout.addOnOffsetChangedListener(new AppBarLayout.OnOffsetChangedListener() {
+            @Override
+            public void onOffsetChanged(AppBarLayout appBarLayout, int verticalOffset) {
+                int totalScrollRange = appBarLayout.getTotalScrollRange();
+                if (totalScrollRange == 0) return;
+
+                float percentage = (float) Math.abs(verticalOffset) / (float) totalScrollRange;
+
+                binding.expandedContent.setAlpha(1f - (percentage * 1.5f));
+
+                if (percentage >= 0.8f) {
+                    binding.collapsingToolbar.setTitleEnabled(true);
+                } else {
+                    binding.collapsingToolbar.setTitleEnabled(false);
+                }
+            }
+        });
+    }
+
     private void fetchOfficialAlerts() {
         ApiClient.getApi().getOfficialAlerts(STATION_ID).enqueue(new Callback<OfficialAlertsResponse>() {
             @Override
             public void onResponse(Call<OfficialAlertsResponse> call, Response<OfficialAlertsResponse> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().success) {
-                    bindOfficialAlerts(response.body().alerts);
+                    List<OfficialAlertsResponse.Alert> alerts = response.body().alerts;
+                    // Salva le nuove allerte nella cache locale
+                    AlertsCache.save(requireContext(), alerts);
+                    bindOfficialAlerts(alerts);
+                } else {
+                    android.util.Log.e("LegmaSky", "Risposta allerte non valida. Mantengo ultime allerte in cache.");
                 }
             }
 
             @Override
             public void onFailure(Call<OfficialAlertsResponse> call, Throwable t) {
                 android.util.Log.e("LegmaSky", "Errore allerte ufficiali: " + t.getMessage(), t);
-            }
-        });
-    }
-
-    private void fetchForecast() {
-        ApiClient.getApi().getForecast(STATION_ID, "base").enqueue(new Callback<ForecastResponse>() {
-            @Override
-            public void onResponse(Call<ForecastResponse> call, Response<ForecastResponse> response) {
-                if (response.isSuccessful() && response.body() != null
-                        && response.body().success && response.body().forecast != null) {
-                    bindForecast(response.body().forecast);
-                } else {
-                    android.util.Log.e("LegmaSky", "Forecast non disponibile");
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ForecastResponse> call, Throwable t) {
-                android.util.Log.e("LegmaSky", "Errore chiamata forecast: " + t.getMessage(), t);
+                // In caso di errore o server down, non pulisce le allerte visibili a schermo
             }
         });
     }
@@ -161,48 +199,28 @@ public class FirstFragment extends Fragment {
         }
     }
 
+    private void fetchForecast() {
+        ApiClient.getApi().getForecast(STATION_ID, "base").enqueue(new Callback<ForecastResponse>() {
+            @Override
+            public void onResponse(Call<ForecastResponse> call, Response<ForecastResponse> response) {
+                if (response.isSuccessful() && response.body() != null
+                        && response.body().success && response.body().forecast != null) {
+                    bindForecast(response.body().forecast);
+                } else {
+                    android.util.Log.e("LegmaSky", "Forecast non disponibile");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ForecastResponse> call, Throwable t) {
+                android.util.Log.e("LegmaSky", "Errore chiamata forecast: " + t.getMessage(), t);
+            }
+        });
+    }
+
     private void bindForecast(ForecastResponse.Forecast f) {
         if (binding == null) return;
         binding.tvConditionAndMinMax.setText(f.icon + " " + f.label);
-    }
-
-    @SuppressLint("SetTextI18n")
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireContext());
-
-        // Nome città provvisorio finché il GPS non risponde
-        binding.tvCityName.setText("Posizione...");
-
-        // Sfondo provvisorio finché non arrivano i dati reali
-        updateDynamicBackground(false, false);
-
-        checkPermissionAndFetchLocation();
-        fetchWeatherData();
-        startAutoRefresh();
-        fetchForecast();
-        fetchOfficialAlerts();
-
-        // Gestione dissolvenza allo scroll
-        binding.appBarLayout.addOnOffsetChangedListener(new AppBarLayout.OnOffsetChangedListener() {
-            @Override
-            public void onOffsetChanged(AppBarLayout appBarLayout, int verticalOffset) {
-                int totalScrollRange = appBarLayout.getTotalScrollRange();
-                if (totalScrollRange == 0) return;
-
-                float percentage = (float) Math.abs(verticalOffset) / (float) totalScrollRange;
-
-                binding.expandedContent.setAlpha(1f - (percentage * 1.5f));
-
-                if (percentage >= 0.8f) {
-                    binding.collapsingToolbar.setTitleEnabled(true);
-                } else {
-                    binding.collapsingToolbar.setTitleEnabled(false);
-                }
-            }
-        });
     }
 
     @SuppressLint("SetTextI18n")
@@ -240,7 +258,6 @@ public class FirstFragment extends Fragment {
 
     @SuppressLint("SetTextI18n")
     private void resolveCityName(double lat, double lon) {
-        // Geocoder fa lavoro di rete/CPU: va eseguito fuori dal thread principale
         new Thread(() -> {
             try {
                 Geocoder geocoder = new Geocoder(requireContext(), Locale.ITALIAN);
@@ -249,7 +266,6 @@ public class FirstFragment extends Fragment {
                 String cityName = "Posizione sconosciuta";
                 if (addresses != null && !addresses.isEmpty()) {
                     Address address = addresses.get(0);
-                    // Locality = città; fallback su subAdminArea (es. Provincia) se la città manca
                     cityName = address.getLocality() != null ? address.getLocality()
                             : address.getSubAdminArea() != null ? address.getSubAdminArea()
                               : "Posizione sconosciuta";
@@ -273,7 +289,6 @@ public class FirstFragment extends Fragment {
     }
 
     private void fetchWeatherData() {
-        // Mostra subito l'ultimo dato salvato, mentre aspetti la risposta dal server
         StationData.LastData cached = WeatherCache.load(requireContext());
         if (cached != null) {
             bindWeatherData(cached, true);
@@ -308,11 +323,24 @@ public class FirstFragment extends Fragment {
             public void run() {
                 fetchWeatherData();
                 fetchForecast();
-                fetchOfficialAlerts();
                 refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
             }
         };
         refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL_MS);
+    }
+
+    private void startAlertsAutoRefresh() {
+        alertsRefreshHandler = new Handler(Looper.getMainLooper());
+        alertsRefreshRunnable = new Runnable() {
+            @Override
+            public void run() {
+                fetchOfficialAlerts();
+                alertsRefreshHandler.postDelayed(this, ALERTS_REFRESH_INTERVAL_MS);
+            }
+        };
+        // Esegue subito la chiamata iniziale e pianifica le successive ogni 60 sec
+        fetchOfficialAlerts();
+        alertsRefreshHandler.postDelayed(alertsRefreshRunnable, ALERTS_REFRESH_INTERVAL_MS);
     }
 
     @SuppressLint("SetTextI18n")
@@ -323,8 +351,6 @@ public class FirstFragment extends Fragment {
             binding.tvConditionAndMinMax.setText("Dati non aggiornati (ultimo: " + time + ")");
         }
     }
-
-
 
     @SuppressLint("SetTextI18n")
     private void bindWeatherData(StationData.LastData data, boolean isFromCache) {
@@ -403,38 +429,23 @@ public class FirstFragment extends Fragment {
     }
 
     private int getDayBackgroundBySeason(int month) {
-        // month: 0=Gen, 1=Feb, ... 11=Dic
         if (month == 11 || month == 0 || month == 1) {
-            return R.drawable.bg_winter_foggy; // inverno
+            return R.drawable.bg_winter_foggy;
         } else if (month >= 8 && month <= 10) {
-            return R.drawable.bg_autumn_clear; // autunno
+            return R.drawable.bg_autumn_clear;
         } else {
-            return R.drawable.bg_summer_clear; // primavera + estate (nessun asset "spring" ancora)
+            return R.drawable.bg_summer_clear;
         }
     }
-
-    private String getSeason(int month) {
-        // month: 0=Gen, 1=Feb, ... 11=Dic
-        if (month == 11 || month == 0 || month == 1) return "winter";
-        if (month >= 2 && month <= 4) return "spring";
-        if (month >= 5 && month <= 7) return "summer";
-        return "autumn"; // mesi 8, 9, 10
-    }
-
-    private String getTimeOfDay(int hour) {
-        if (hour >= 6 && hour < 10) return "morning";
-        if (hour >= 10 && hour < 18) return "day";
-        if (hour >= 18 && hour < 21) return "evening";
-        return "night";
-    }
-
-
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
         if (refreshHandler != null && refreshRunnable != null) {
             refreshHandler.removeCallbacks(refreshRunnable);
+        }
+        if (alertsRefreshHandler != null && alertsRefreshRunnable != null) {
+            alertsRefreshHandler.removeCallbacks(alertsRefreshRunnable);
         }
         binding = null;
     }

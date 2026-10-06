@@ -117,6 +117,20 @@ public class FirstFragment extends Fragment {
                 }
             }
         });
+
+        // --- AGGIUNGI QUI IL LISTENER DELLA CARD PREVISIONI ---
+        binding.tvConditionAndMinMax.setOnClickListener(v -> {
+            requireActivity().getSupportFragmentManager().beginTransaction()
+                    .setCustomAnimations(
+                            android.R.anim.fade_in,
+                            android.R.anim.fade_out,
+                            android.R.anim.fade_in,
+                            android.R.anim.fade_out
+                    )
+                    .replace(R.id.nav_host_fragment_content_main, new ForecastDetailFragment())
+                    .addToBackStack(null)
+                    .commit();
+        });
     }
 
     private void fetchOfficialAlerts() {

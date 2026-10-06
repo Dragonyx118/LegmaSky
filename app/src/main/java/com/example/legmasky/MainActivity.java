@@ -2,14 +2,15 @@ package com.example.legmasky;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.ScrollView;
+import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.ViewCompat;
-import com.example.legmasky.BuildConfig;
 
 import com.example.legmasky.databinding.ActivityMainBinding;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -30,23 +31,36 @@ public class MainActivity extends AppCompatActivity {
         UpdateChecker.checkForUpdate(this, BuildConfig.VERSION_CODE, new UpdateChecker.UpdateListener() {
             @Override
             public void onUpdateAvailable(String versionName, String downloadUrl, String releaseNotes) {
-                new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("Aggiornamento disponibile")
-                        .setMessage("Nuova versione " + versionName + " disponibile.\n\n" + releaseNotes)
-                        .setPositiveButton("Scarica", (dialog, which) ->
-                                UpdateChecker.openDownloadUrl(MainActivity.this, downloadUrl))
+                // Layout interno minimale per permettere lo scroll delle note di rilascio
+                TextView tvNotes = new TextView(MainActivity.this);
+                tvNotes.setText(releaseNotes.isEmpty() ? "Miglioramenti e correzioni di bug." : releaseNotes);
+                tvNotes.setPadding(60, 20, 60, 20);
+                tvNotes.setTextSize(14f);
+
+                ScrollView scrollView = new ScrollView(MainActivity.this);
+                scrollView.addView(tvNotes);
+
+                new MaterialAlertDialogBuilder(MainActivity.this)
+                        .setIcon(android.R.drawable.stat_sys_download)
+                        .setTitle("Aggiornamento v" + versionName)
+                        .setMessage("È disponibile una nuova versione dell'app.")
+                        .setView(scrollView)
+                        .setCancelable(false)
+                        .setPositiveButton("Aggiorna ora", (dialog, which) -> {
+                            UpdateChecker.openDownloadUrl(MainActivity.this, downloadUrl);
+                        })
                         .setNegativeButton("Più tardi", null)
                         .show();
             }
 
             @Override
             public void onUpToDate() {
-                // Nessuna azione: app già aggiornata
+                // Nessun aggiornamento necessario
             }
 
             @Override
             public void onError(String message) {
-                Log.e("LegmaSky", "Controllo aggiornamenti fallito: " + message);
+                Log.e("LegmaSky", "Errore controllo aggiornamenti: " + message);
             }
         });
     }

@@ -1,31 +1,19 @@
 package com.example.legmasky;
 
-import android.app.DownloadManager;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.net.Uri;
-import android.os.Build;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.Settings;
 import android.util.Log;
-import android.widget.Toast;
-
-import androidx.core.content.ContextCompat;
-import androidx.core.content.FileProvider;
 
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-@SuppressWarnings("unused")
 public class UpdateChecker {
 
     private static final String TAG = "LegmaSky";
@@ -52,6 +40,8 @@ public class UpdateChecker {
                     downloadUrl = json.getJSONArray("assets")
                             .getJSONObject(0)
                             .getString("browser_download_url");
+                } else if (json.has("html_url")) {
+                    downloadUrl = json.getString("html_url");
                 }
 
                 Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -98,82 +88,6 @@ public class UpdateChecker {
             }
         } catch (Exception ignored) {}
         return 0;
-    }
-
-    public static void downloadAndInstallApk(Context context, String url, String versionName) {
-        String fileName = "legmasky-" + versionName + ".apk";
-        File file = new File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName);
-
-        if (file.exists()) {
-            installApk(context, file);
-            return;
-        }
-
-        Toast.makeText(context, "Download aggiornamento avviato...", Toast.LENGTH_SHORT).show();
-
-        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-        request.setTitle("Aggiornamento LegmaSky");
-        request.setDescription("Download della versione " + versionName);
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-        request.setDestinationUri(Uri.fromFile(file));
-        request.setMimeType("application/vnd.android.package-archive");
-
-        DownloadManager manager = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
-        if (manager == null) {
-            Toast.makeText(context, "Impossibile avviare il DownloadManager", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        long downloadId = manager.enqueue(request);
-
-        BroadcastReceiver onComplete = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context ctxt, Intent intent) {
-                long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1);
-                if (downloadId == id) {
-                    try {
-                        ctxt.unregisterReceiver(this);
-                    } catch (Exception ignored) {}
-                    installApk(ctxt, file);
-                }
-            }
-        };
-
-        ContextCompat.registerReceiver(
-                context,
-                onComplete,
-                new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                ContextCompat.RECEIVER_EXPORTED
-        );
-    }
-
-    private static void installApk(Context context, File file) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!context.getPackageManager().canRequestPackageInstalls()) {
-                new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
-                        .setTitle("Autorizzazione richiesta")
-                        .setMessage("Per completare l'aggiornamento automatico, abilita l'autorizzazione \"Consenti da questa fonte\" per LegmaSky nelle impostazioni.")
-                        .setPositiveButton("Vai alle Impostazioni", (dialog, which) -> {
-                            Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
-                                    .setData(Uri.parse("package:" + context.getPackageName()));
-                            context.startActivity(intent);
-                        })
-                        .setNegativeButton("Annulla", null)
-                        .show();
-                return;
-            }
-        }
-
-        Uri apkUri = FileProvider.getUriForFile(
-                context,
-                context.getPackageName() + ".provider",
-                file
-        );
-
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        context.startActivity(intent);
     }
 
     public static void openDownloadUrl(Context context, String url) {

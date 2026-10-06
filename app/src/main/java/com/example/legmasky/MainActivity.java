@@ -1,23 +1,16 @@
 package com.example.legmasky;
 
-import android.content.Intent;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.util.Log;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.FileProvider;
 import androidx.core.view.ViewCompat;
 
 import com.example.legmasky.databinding.ActivityMainBinding;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-
-import java.io.File;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -54,7 +47,7 @@ public class MainActivity extends AppCompatActivity {
                         .setView(scrollView)
                         .setCancelable(false)
                         .setPositiveButton("Aggiorna ora", (dialog, which) -> {
-                            UpdateChecker.downloadAndInstallApk(MainActivity.this, downloadUrl, versionName);
+                            UpdateChecker.openDownloadUrl(MainActivity.this, downloadUrl);
                         })
                         .setNegativeButton("Più tardi", null)
                         .show();
@@ -70,35 +63,5 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("LegmaSky", "Errore controllo aggiornamenti: " + message);
             }
         });
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-
-        // Controlla se c'è un APK scaricato in attesa di essere installato
-        // Cerca i file scaricati nella cartella dei download dell'app
-        File downloadsDir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
-        if (downloadsDir != null && downloadsDir.exists()) {
-            File[] files = downloadsDir.listFiles((dir, name) -> name.startsWith("legmasky-") && name.endsWith(".apk"));
-            if (files != null && files.length > 0) {
-                File pendingApk = files[0]; // Prende il primo APK scaricato
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    if (getPackageManager().canRequestPackageInstalls()) {
-                        // L'utente ha appena concesso il permesso: avvia subito l'installatore
-                        Uri apkUri = FileProvider.getUriForFile(
-                                this,
-                                getPackageName() + ".provider",
-                                pendingApk
-                        );
-                        Intent intent = new Intent(Intent.ACTION_VIEW);
-                        intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                        startActivity(intent);
-                    }
-                }
-            }
-        }
     }
 }

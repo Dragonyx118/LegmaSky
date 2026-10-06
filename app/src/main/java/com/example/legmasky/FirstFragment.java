@@ -27,8 +27,12 @@ import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.material.appbar.AppBarLayout;
 
-import java.util.Calendar;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import java.util.List;
+import com.example.legmasky.model.OfficialAlertsResponse;
+
+import java.util.Calendar;
 import java.util.Locale;
 
 import retrofit2.Call;
@@ -37,7 +41,6 @@ import retrofit2.Response;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Locale;
 
 import android.os.Handler;
 import android.os.Looper;
@@ -65,6 +68,22 @@ public class FirstFragment extends Fragment {
         return binding.getRoot();
     }
 
+    private void fetchOfficialAlerts() {
+        ApiClient.getApi().getOfficialAlerts(STATION_ID).enqueue(new Callback<OfficialAlertsResponse>() {
+            @Override
+            public void onResponse(Call<OfficialAlertsResponse> call, Response<OfficialAlertsResponse> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().success) {
+                    bindOfficialAlerts(response.body().alerts);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<OfficialAlertsResponse> call, Throwable t) {
+                android.util.Log.e("LegmaSky", "Errore allerte ufficiali: " + t.getMessage(), t);
+            }
+        });
+    }
+
     private void fetchForecast() {
         ApiClient.getApi().getForecast(STATION_ID, "base").enqueue(new Callback<ForecastResponse>() {
             @Override
@@ -82,6 +101,60 @@ public class FirstFragment extends Fragment {
                 android.util.Log.e("LegmaSky", "Errore chiamata forecast: " + t.getMessage(), t);
             }
         });
+    }
+
+    private void bindOfficialAlerts(List<OfficialAlertsResponse.Alert> alerts) {
+        if (binding == null) return;
+
+        binding.alertsContainer.removeAllViews();
+
+        if (alerts == null || alerts.isEmpty()) {
+            binding.alertsScroll.setVisibility(View.GONE);
+            return;
+        }
+
+        binding.alertsScroll.setVisibility(View.VISIBLE);
+
+        for (OfficialAlertsResponse.Alert alert : alerts) {
+            LinearLayout chip = new LinearLayout(requireContext());
+            chip.setOrientation(LinearLayout.HORIZONTAL);
+            chip.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            chip.setPadding(28, 14, 28, 14);
+
+            LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            chipParams.setMarginEnd(16);
+            chip.setLayoutParams(chipParams);
+
+            chip.setBackgroundResource(R.drawable.bg_badge_rounded);
+            chip.getBackground().mutate().setTint(colorForAlert(alert.color));
+
+            TextView tv = new TextView(requireContext());
+            tv.setText(iconForAlert(alert.color) + " " + alert.title);
+            tv.setTextColor(Color.WHITE);
+            tv.setTextSize(13f);
+
+            chip.addView(tv);
+            binding.alertsContainer.addView(chip);
+        }
+    }
+
+    private String iconForAlert(String color) {
+        switch (color) {
+            case "gialla": return "🟡";
+            case "arancione": return "🟠";
+            case "rossa": return "🔴";
+            default: return "⚪";
+        }
+    }
+
+    private int colorForAlert(String color) {
+        switch (color) {
+            case "gialla": return Color.parseColor("#B8860B");
+            case "arancione": return Color.parseColor("#CC6600");
+            case "rossa": return Color.parseColor("#B22222");
+            default: return Color.parseColor("#555555");
+        }
     }
 
     private void bindForecast(ForecastResponse.Forecast f) {
@@ -106,6 +179,7 @@ public class FirstFragment extends Fragment {
         fetchWeatherData();
         startAutoRefresh();
         fetchForecast();
+        fetchOfficialAlerts();
 
         // Gestione dissolvenza allo scroll
         binding.appBarLayout.addOnOffsetChangedListener(new AppBarLayout.OnOffsetChangedListener() {
@@ -230,6 +304,7 @@ public class FirstFragment extends Fragment {
             public void run() {
                 fetchWeatherData();
                 fetchForecast();
+                fetchOfficialAlerts();
                 refreshHandler.postDelayed(this, REFRESH_INTERVAL_MS);
             }
         };

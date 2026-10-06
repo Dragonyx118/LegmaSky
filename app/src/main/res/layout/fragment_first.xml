@@ -131,6 +131,23 @@
             android:paddingHorizontal="14dp"
             android:paddingTop="8dp">
 
+            <!-- Allerte ufficiali — striscia orizzontale di chip, nascosta se vuota -->
+            <HorizontalScrollView
+                android:id="@+id/alertsScroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:visibility="gone"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/alertsContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+
+            </HorizontalScrollView>
+
             <!-- Card Previsioni a 5 giorni -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"

@@ -10,6 +10,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import com.example.legmasky.BuildConfig;
 
 import com.example.legmasky.databinding.ActivityMainBinding;
 
@@ -36,6 +37,29 @@ public class MainActivity extends AppCompatActivity {
         // Estende la vista sotto status bar e navigation bar senza aggiungere margin al layout principale
         ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), (v, insets) -> {
             return insets;
+        });
+        UpdateChecker.checkForUpdate(this, BuildConfig.VERSION_CODE, new UpdateChecker.UpdateListener() {
+            @Override
+            public void onUpdateAvailable(String versionName, String downloadUrl, String releaseNotes) {
+                new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Aggiornamento disponibile")
+                        .setMessage("Nuova versione " + versionName + " disponibile.\n\n" + releaseNotes)
+                        .setPositiveButton("Scarica", (dialog, which) -> {
+                            UpdateChecker.openDownloadUrl(MainActivity.this, downloadUrl);
+                        })
+                        .setNegativeButton("Più tardi", null)
+                        .show();
+            }
+
+            @Override
+            public void onUpToDate() {
+                // nessuna azione, app già aggiornata
+            }
+
+            @Override
+            public void onError(String message) {
+                android.util.Log.e("LegmaSky", "Controllo aggiornamenti fallito: " + message);
+            }
         });
     }
 }

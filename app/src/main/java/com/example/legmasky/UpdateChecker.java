@@ -6,16 +6,17 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -147,6 +148,17 @@ public class UpdateChecker {
     }
 
     private static void installApk(Context context, File file) {
+        // Controllo specifico per Android 8.0 (API 26) e superiori
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!context.getPackageManager().canRequestPackageInstalls()) {
+                Toast.makeText(context, "Abilita l'autorizzazione per installare gli aggiornamenti", Toast.LENGTH_LONG).show();
+                Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+                        .setData(Uri.parse("package:" + context.getPackageName()));
+                context.startActivity(intent);
+                return;
+            }
+        }
+
         Uri apkUri = FileProvider.getUriForFile(
                 context,
                 context.getPackageName() + ".provider",

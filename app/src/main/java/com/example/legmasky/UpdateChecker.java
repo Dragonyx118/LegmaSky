@@ -148,13 +148,18 @@ public class UpdateChecker {
     }
 
     private static void installApk(Context context, File file) {
-        // Controllo specifico per Android 8.0 (API 26) e superiori
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!context.getPackageManager().canRequestPackageInstalls()) {
-                Toast.makeText(context, "Abilita l'autorizzazione per installare gli aggiornamenti", Toast.LENGTH_LONG).show();
-                Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
-                        .setData(Uri.parse("package:" + context.getPackageName()));
-                context.startActivity(intent);
+                new com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+                        .setTitle("Autorizzazione richiesta")
+                        .setMessage("Per completare l'aggiornamento automatico, abilita l'autorizzazione \"Consenti da questa fonte\" per LegmaSky nelle impostazioni.")
+                        .setPositiveButton("Vai alle Impostazioni", (dialog, which) -> {
+                            Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+                                    .setData(Uri.parse("package:" + context.getPackageName()));
+                            context.startActivity(intent);
+                        })
+                        .setNegativeButton("Annulla", null)
+                        .show();
                 return;
             }
         }

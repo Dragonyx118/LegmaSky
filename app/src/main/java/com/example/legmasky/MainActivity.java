@@ -42,12 +42,12 @@ public class MainActivity extends AppCompatActivity {
 
                 new MaterialAlertDialogBuilder(MainActivity.this)
                         .setIcon(android.R.drawable.stat_sys_download)
-                        .setTitle("Aggiornamento v" + versionName)
+                        .setTitle("Aggiornamento " + versionName)
                         .setMessage("È disponibile una nuova versione dell'app.")
                         .setView(scrollView)
                         .setCancelable(false)
                         .setPositiveButton("Aggiorna ora", (dialog, which) -> {
-                            UpdateChecker.openDownloadUrl(MainActivity.this, downloadUrl);
+                            UpdateChecker.downloadAndInstallApk(MainActivity.this, downloadUrl, versionName);
                         })
                         .setNegativeButton("Più tardi", null)
                         .show();

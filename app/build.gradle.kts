@@ -51,37 +51,46 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
 }
 
-tasks.matching { it.name.startsWith("assemble") }.configureEach {
+val appVersionName = android.defaultConfig.versionName ?: "1.0"
+val apkOutputDir = layout.buildDirectory.dir("outputs/apk")
+
+val copyApksTask = tasks.register("copyGeneratedApks") {
+    val version = appVersionName
+    val buildDirFile = apkOutputDir
+
     doLast {
-        // 1. Definisci qui la lista dei percorsi di destinazione
+        val outputFolder = buildDirFile.get().asFile
         val cartelleDestinazione = listOf(
             File("C:\\Users\\gianb\\Desktop\\Projects\\LegmaMiteo\\BombaRepo\\LegmaMiteo\\apks"),
-            File("C:\\Users\\gianb\\Desktop\\Projects\\LegmaMiteo\\BombaApp\\LegmaSky\\apks") // Sostituisci con il tuo secondo percorso
+            File("C:\\Users\\gianb\\Desktop\\Projects\\LegmaMiteo\\BombaApp\\LegmaSky\\apks")
         )
 
-        // 2. Crea le cartelle se non esistono
         cartelleDestinazione.forEach { cartella ->
             if (!cartella.exists()) {
                 cartella.mkdirs()
             }
         }
 
-        // 3. Cerca gli APK generati e copiali in tutti i percorsi della lista
-        val cartellaBuildApk = File(layout.buildDirectory.asFile.get(), "outputs/apk")
-        if (cartellaBuildApk.exists()) {
-            cartellaBuildApk.walkTopDown().forEach { file ->
-                if (file.extension == "apk") {
-                    val buildType = file.parentFile.name // debug o release
-                    val nuovoNomeApk = "app-$buildType-v${android.defaultConfig.versionName}.apk"
+        if (outputFolder.exists()) {
+            outputFolder.walkTopDown().forEach { file ->
+                // Filtro: deve essere APK e pesare più di 2 MB (2 * 1024 * 1024 byte)
+                if (file.extension == "apk" && file.length() > 2 * 1024 * 1024) {
 
-                    // Copia l'APK in ogni cartella specificata
+                    // Nome personalizzato: legmasky-v1.2.0.apk (o legmasky-release-v1.2.0.apk se vuoi specificare il buildType)
+                    val buildType = file.parentFile.name // release / debug
+                    val nuovoNomeApk = "legmasky-$buildType-v$version.apk"
+
                     cartelleDestinazione.forEach { cartella ->
                         val fileDestinazione = File(cartella, nuovoNomeApk)
                         file.copyTo(fileDestinazione, overwrite = true)
-                        println("APK copiato con successo in: ${fileDestinazione.absolutePath}")
+                        println("APK valido copiato in: ${fileDestinazione.absolutePath} (${file.length() / 1024 / 1024} MB)")
                     }
                 }
             }
         }
     }
+}
+
+tasks.matching { it.name.startsWith("assemble") }.configureEach {
+    finalizedBy(copyApksTask)
 }

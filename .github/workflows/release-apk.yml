@@ -1,0 +1,55 @@
+name: Auto Release APK
+
+on:
+  push:
+    branches:
+      - main     # Sostituisci con 'master' se il tuo branch principale si chiama master
+    paths:
+      - 'apks/*.apk'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del codice
+        uses: actions/checkout@v4
+
+      - -name: Trova l'APK e ne verifica la dimensione
+        id: parse_apk
+        run: |
+          # Trova il primo file APK nella cartella apks/
+          APK_FILE=$(ls apks/*.apk | head -n 1)
+          
+          if [ -z "$APK_FILE" ]; then
+            echo "Nessun APK trovato nella cartella apks/"
+            exit 1
+          fi
+
+          # Controlla che la dimensione sia superiore a 2MB (2097152 byte)
+          FILE_SIZE=$(stat -c%s "$APK_FILE")
+          MIN_SIZE=2097152
+          
+          if [ "$FILE_SIZE" -lt "$MIN_SIZE" ]; then
+            echo "ERRORE: L'APK trovato pesava solo $((FILE_SIZE / 1024)) KB, è probabilmente un file di test!"
+            exit 1
+          fi
+
+          FILENAME=$(basename "$APK_FILE")
+          echo "APK valido trovato: $FILENAME ($((FILE_SIZE / 1024 / 1024)) MB)"
+
+          # Estrae la versione dal nome (es. legmasky-v1.2.0.apk o legmasky-debug-v1.2.0.apk -> 1.2.0)
+          VERSION_NAME=$(echo "$FILENAME" | sed -E 's/.*-v([0-9]+\.[0-9]+\.[0-9]+).*\.apk/\1/')
+          TAG_NAME="v$VERSION_NAME"
+          
+          # Calcola il versionCode (es. 1.2.0 -> 120)
+          VERSION_CODE=$(echo "$VERSION_NAME" | tr -d '.')
+          
+          echo "apk_path=$APK_FILE" >> $GITHUB_OUTPUT
+          echo "apk_name=$FILENAME" >> $GITHUB_OUTPUT
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT

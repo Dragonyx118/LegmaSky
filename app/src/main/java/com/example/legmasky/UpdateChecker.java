@@ -18,7 +18,7 @@ public class UpdateChecker {
 
     private static final String TAG = "LegmaSky";
     private static final String GITHUB_API_URL =
-            "https://api.github.com/repos/Dragonyx118/LegmaMiteo-Android/releases/latest";
+            "https://api.github.com/repos/Dragonyx118/LegmaSky/releases/latest";
     // sostituisci col repo giusto se l'app ha un repo separato da LegmaMiteo
 
     public interface UpdateListener {

@@ -34,9 +34,8 @@ jobs:
       - name: Estrai versione e versionCode da Gradle
         id: parse_gradle
         run: |
-          # Interroga direttamente Gradle per ottenere i valori esatti da build.gradle.kts
-          VERSION_NAME=$(./gradlew -q printVersionName)
-          VERSION_CODE=$(./gradlew -q printVersionCode)
+          VERSION_NAME=$(./gradlew -q printVersionName --no-configuration-cache)
+          VERSION_CODE=$(./gradlew -q printVersionCode --no-configuration-cache)
 
           TAG_NAME="v$VERSION_NAME"
 

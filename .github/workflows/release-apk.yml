@@ -4,8 +4,10 @@ on:
   push:
     branches:
       - main     # Sostituisci con 'master' se il tuo branch principale si chiama master
+      - master
     paths:
       - 'apks/*.apk'
+  workflow_dispatch: # Ti permette di avviarlo anche manualmente dalla scheda Actions su GitHub
 
 permissions:
   contents: write
@@ -18,7 +20,7 @@ jobs:
       - name: Checkout del codice
         uses: actions/checkout@v4
 
-      - -name: Trova l'APK e ne verifica la dimensione
+      - name: Trova l'APK e ne verifica la dimensione
         id: parse_apk
         run: |
           # Trova il primo file APK nella cartella apks/
@@ -53,3 +55,31 @@ jobs:
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+
+      - name: Prepara le Note di Rilascio (Release Body)
+        id: release_body
+        run: |
+          BODY=$(cat <<EOF
+          versionCode=${{ steps.parse_apk.outputs.version_code }}
+          
+          ## Note di rilascio
+          - Nuovo aggiornamento automatico della versione ${{ steps.parse_apk.outputs.version_name }}.
+          EOF
+          )
+          
+          EOF_MARKER=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "body<<$EOF_MARKER" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "$EOF_MARKER" >> $GITHUB_OUTPUT
+
+      - name: Crea la Release su GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.parse_apk.outputs.tag_name }}
+          name: "Release ${{ steps.parse_apk.outputs.tag_name }}"
+          body: ${{ steps.release_body.outputs.body }}
+          files: ${{ steps.parse_apk.outputs.apk_path }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -3,11 +3,11 @@ name: Auto Release APK
 on:
   push:
     branches:
-      - main     # Sostituisci con 'master' se il tuo branch principale si chiama master
+      - main
       - master
     paths:
       - 'apks/*.apk'
-  workflow_dispatch: # Ti permette di avviarlo anche manualmente dalla scheda Actions su GitHub
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -19,64 +19,83 @@ jobs:
     steps:
       - name: Checkout del codice
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necessario per la gestione e il push dei tag Git
 
-      - name: Trova l'APK e ne verifica la dimensione
+      - name: Configura JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Rendi eseguibile gradlew
+        run: chmod +x gradlew
+
+      - name: Estrai versione e versionCode da Gradle
+        id: parse_gradle
+        run: |
+          # Interroga direttamente Gradle per ottenere i valori esatti da build.gradle.kts
+          VERSION_NAME=$(./gradlew -q printVersionName)
+          VERSION_CODE=$(./gradlew -q printVersionCode)
+
+          TAG_NAME="v$VERSION_NAME"
+
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Trova e verifica l'APK
         id: parse_apk
         run: |
-          # Trova il primo file APK nella cartella apks/
           APK_FILE=$(ls apks/*.apk | head -n 1)
-          
+
           if [ -z "$APK_FILE" ]; then
-            echo "Nessun APK trovato nella cartella apks/"
+            echo "ERRORE: Nessun APK trovato nella cartella apks/"
             exit 1
           fi
 
-          # Controlla che la dimensione sia superiore a 2MB (2097152 byte)
           FILE_SIZE=$(stat -c%s "$APK_FILE")
           MIN_SIZE=2097152
-          
+
           if [ "$FILE_SIZE" -lt "$MIN_SIZE" ]; then
-            echo "ERRORE: L'APK trovato pesava solo $((FILE_SIZE / 1024)) KB, è probabilmente un file di test!"
+            echo "ERRORE: L'APK trovato pesa meno di 2MB!"
             exit 1
           fi
 
-          FILENAME=$(basename "$APK_FILE")
-          echo "APK valido trovato: $FILENAME ($((FILE_SIZE / 1024 / 1024)) MB)"
-
-          # Estrae la versione dal nome (es. legmasky-v1.2.0.apk o legmasky-debug-v1.2.0.apk -> 1.2.0)
-          VERSION_NAME=$(echo "$FILENAME" | sed -E 's/.*-v([0-9]+\.[0-9]+\.[0-9]+).*\.apk/\1/')
-          TAG_NAME="v$VERSION_NAME"
-          
-          # Calcola il versionCode (es. 1.2.0 -> 120)
-          VERSION_CODE=$(echo "$VERSION_NAME" | tr -d '.')
-          
           echo "apk_path=$APK_FILE" >> $GITHUB_OUTPUT
-          echo "apk_name=$FILENAME" >> $GITHUB_OUTPUT
-          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+
+      - name: Crea e Push del Tag Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Crea il tag se non esiste già
+          if ! git rev-parse ${{ steps.parse_gradle.outputs.tag_name }} >/dev/null 2>&1; then
+            git tag ${{ steps.parse_gradle.outputs.tag_name }}
+            git push origin ${{ steps.parse_gradle.outputs.tag_name }}
+          fi
 
       - name: Prepara le Note di Rilascio (Release Body)
         id: release_body
         run: |
           BODY=$(cat <<EOF
-          versionCode=${{ steps.parse_apk.outputs.version_code }}
-          
+          versionCode=${{ steps.parse_gradle.outputs.version_code }}
+
           ## Note di rilascio
-          - Nuovo aggiornamento automatico della versione ${{ steps.parse_apk.outputs.version_name }}.
+          - Nuovo aggiornamento automatico per la versione ${{ steps.parse_gradle.outputs.version_name }}.
           EOF
           )
-          
+
           EOF_MARKER=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "body<<$EOF_MARKER" >> $GITHUB_OUTPUT
           echo "$BODY" >> $GITHUB_OUTPUT
           echo "$EOF_MARKER" >> $GITHUB_OUTPUT
 
-      - name: Crea la Release su GitHub
+      - name: Crea una Nuova Release su GitHub
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.parse_apk.outputs.tag_name }}
-          name: "Release ${{ steps.parse_apk.outputs.tag_name }}"
+          tag_name: ${{ steps.parse_gradle.outputs.tag_name }}
+          name: "Release ${{ steps.parse_gradle.outputs.tag_name }}"
           body: ${{ steps.release_body.outputs.body }}
           files: ${{ steps.parse_apk.outputs.apk_path }}
           draft: false

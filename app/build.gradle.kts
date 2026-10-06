@@ -94,3 +94,6 @@ val copyApksTask = tasks.register("copyGeneratedApks") {
 tasks.matching { it.name.startsWith("assemble") }.configureEach {
     finalizedBy(copyApksTask)
 }
+
+tasks.register("printVersionName") { doLast { println(android.defaultConfig.versionName) } }
+tasks.register("printVersionCode") { doLast { println(android.defaultConfig.versionCode) } }

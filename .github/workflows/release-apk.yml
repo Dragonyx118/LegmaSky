@@ -20,7 +20,7 @@ jobs:
       - name: Checkout del codice
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Necessario per la gestione e il push dei tag Git
+          fetch-depth: 0
 
       - name: Configura JDK 17
         uses: actions/setup-java@v4
@@ -34,8 +34,8 @@ jobs:
       - name: Estrai versione e versionCode da Gradle
         id: parse_gradle
         run: |
-          VERSION_NAME=$(./gradlew -q printVersionName --no-configuration-cache)
-          VERSION_CODE=$(./gradlew -q printVersionCode --no-configuration-cache)
+          VERSION_NAME=$(./gradlew -q printVersionName --no-configuration-cache | tr -d '\r\n')
+          VERSION_CODE=$(./gradlew -q printVersionCode --no-configuration-cache | tr -d '\r\n')
 
           TAG_NAME="v$VERSION_NAME"
 
@@ -43,11 +43,17 @@ jobs:
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
 
-      - name: Trova e verifica l'APK
+      - name: Trova l'APK corrispondente alla versione
         id: parse_apk
         run: |
-          # Prende il file .apk più recente presente nella cartella apks/
-          APK_FILE=$(ls -t apks/*.apk | head -n 1)
+          # Cerca l'APK specificatamente associato al versionName corrente
+          VERSION_NAME="${{ steps.parse_gradle.outputs.version_name }}"
+          APK_FILE=$(find apks/ -maxdepth 1 -name "*v${VERSION_NAME}*.apk" | head -n 1)
+
+          # Se non trova l'APK con la versione specifica, prende quello modificato più di recente
+          if [ -z "$APK_FILE" ]; then
+            APK_FILE=$(ls -t apks/*.apk 2>/dev/null | head -n 1)
+          fi
 
           if [ -z "$APK_FILE" ]; then
             echo "ERRORE: Nessun APK trovato nella cartella apks/"
@@ -58,22 +64,31 @@ jobs:
           MIN_SIZE=2097152
 
           if [ "$FILE_SIZE" -lt "$MIN_SIZE" ]; then
-            echo "ERRORE: L'APK trovato pesa meno di 2MB!"
+            echo "ERRORE: L'APK trovato ($APK_FILE) pesa meno di 2MB!"
             exit 1
           fi
 
+          echo "APK selezionato: $APK_FILE"
           echo "apk_path=$APK_FILE" >> $GITHUB_OUTPUT
+
+      - name: Verifica esistenza Tag Git
+        id: check_tag
+        run: |
+          TAG_NAME="${{ steps.parse_gradle.outputs.tag_name }}"
+          
+          # Controlla se il tag esiste già sia in locale che nel remoto
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1 || git ls-remote --tags origin "$TAG_NAME" | grep -q "$TAG_NAME"; then
+            echo "ERRORE: Il tag $TAG_NAME esiste già! Incrementa versionName in build.gradle."
+            exit 1
+          fi
 
       - name: Crea e Push del Tag Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Crea il tag se non esiste già
-          if ! git rev-parse ${{ steps.parse_gradle.outputs.tag_name }} >/dev/null 2>&1; then
-            git tag ${{ steps.parse_gradle.outputs.tag_name }}
-            git push origin ${{ steps.parse_gradle.outputs.tag_name }}
-          fi
+          git tag ${{ steps.parse_gradle.outputs.tag_name }}
+          git push origin ${{ steps.parse_gradle.outputs.tag_name }}
 
       - name: Prepara le Note di Rilascio (Release Body)
         id: release_body

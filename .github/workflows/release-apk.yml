@@ -46,7 +46,8 @@ jobs:
       - name: Trova e verifica l'APK
         id: parse_apk
         run: |
-          APK_FILE=$(ls apks/*.apk | head -n 1)
+          # Prende il file .apk più recente presente nella cartella apks/
+          APK_FILE=$(ls -t apks/*.apk | head -n 1)
 
           if [ -z "$APK_FILE" ]; then
             echo "ERRORE: Nessun APK trovato nella cartella apks/"

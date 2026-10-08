@@ -92,6 +92,13 @@ public class FirstFragment extends Fragment {
             bindOfficialAlerts(cachedAlerts);
         }
 
+        binding.swipeRefreshLayout.setOnRefreshListener(() -> {
+            // Forza il ricaricamento dei dati bypassing/aggiornando la cache
+            fetchWeatherData();
+            fetchForecast();
+            fetchOfficialAlerts();
+        });
+
         fetchWeatherData();
         fetchForecast();
 
@@ -228,6 +235,9 @@ public class FirstFragment extends Fragment {
             @Override
             public void onFailure(Call<ForecastResponse> call, Throwable t) {
                 android.util.Log.e("LegmaSky", "Errore chiamata forecast: " + t.getMessage(), t);
+                if (binding != null) {
+                    binding.swipeRefreshLayout.setRefreshing(false); // <--- AGGIUNGI QUI
+                }
             }
         });
     }
@@ -318,6 +328,9 @@ public class FirstFragment extends Fragment {
                     bindWeatherData(data, false);
                 } else {
                     android.util.Log.e("LegmaSky", "Risposta non valida. Mantengo ultimi dati in cache.");
+                    if (binding != null) {
+                        binding.swipeRefreshLayout.setRefreshing(false); // <--- AGGIUNGI QUI
+                    }
                     showStaleDataWarning();
                 }
             }
@@ -325,6 +338,9 @@ public class FirstFragment extends Fragment {
             @Override
             public void onFailure(Call<StationData> call, Throwable t) {
                 android.util.Log.e("LegmaSky", "Errore chiamata API: " + t.getMessage(), t);
+                if (binding != null) {
+                    binding.swipeRefreshLayout.setRefreshing(false);
+                }
                 showStaleDataWarning();
             }
         });
@@ -369,6 +385,10 @@ public class FirstFragment extends Fragment {
     @SuppressLint("SetTextI18n")
     private void bindWeatherData(StationData.LastData data, boolean isFromCache) {
         if (binding == null) return;
+
+
+        binding.swipeRefreshLayout.setRefreshing(false);
+
         binding.tvPressureValue.setText(Math.round(data.pressure) + " hPa");
 
         binding.tvLocationSub.setText("Stazione " + STATION_ID);

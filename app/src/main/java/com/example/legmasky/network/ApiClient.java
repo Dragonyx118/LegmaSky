@@ -4,7 +4,7 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class ApiClient {
-    private static final String BASE_URL = "https://sogmacimputer.tail1c95b4.ts.net/api/";
+    private static final String BASE_URL = "https://legmamiteo-server.tail1c95b4.ts.net/api/";
 
     private static Retrofit retrofit;
 

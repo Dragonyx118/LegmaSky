@@ -31,7 +31,6 @@ import com.example.legmasky.model.StationData;
 import com.example.legmasky.network.ApiClient;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.material.appbar.AppBarLayout;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -58,7 +57,7 @@ public class FirstFragment extends Fragment {
     // Timer dedicato ad alta frequenza per le allerte meteo (1 minuto)
     private Handler alertsRefreshHandler;
     private Runnable alertsRefreshRunnable;
-    private static final long ALERTS_REFRESH_INTERVAL_MS = 1 * 60 * 1000;
+    private static final long ALERTS_REFRESH_INTERVAL_MS = 60 * 1000;
 
     private FusedLocationProviderClient fusedLocationClient;
 
@@ -99,49 +98,46 @@ public class FirstFragment extends Fragment {
             fetchOfficialAlerts();
         });
 
+        binding.swipeRefreshLayout.setEnabled(false);
+
+        binding.appBarLayout.addOnOffsetChangedListener((appBarLayout, verticalOffset) -> {
+            boolean isAtTop = (verticalOffset == 0);
+            binding.swipeRefreshLayout.setEnabled(isAtTop);
+        });
+
         fetchWeatherData();
         fetchForecast();
 
-        // 2. Avvio dei timer separati per aggiornamento automatico
         startAutoRefresh();
         startAlertsAutoRefresh();
 
         // Gestione dissolvenza allo scroll
-        binding.appBarLayout.addOnOffsetChangedListener(new AppBarLayout.OnOffsetChangedListener() {
-            @Override
-            public void onOffsetChanged(AppBarLayout appBarLayout, int verticalOffset) {
-                int totalScrollRange = appBarLayout.getTotalScrollRange();
-                if (totalScrollRange == 0) return;
+        binding.appBarLayout.addOnOffsetChangedListener((appBarLayout, verticalOffset) -> {
+            int totalScrollRange = appBarLayout.getTotalScrollRange();
+            if (totalScrollRange == 0) return;
 
-                float percentage = (float) Math.abs(verticalOffset) / (float) totalScrollRange;
+            float percentage = (float) Math.abs(verticalOffset) / (float) totalScrollRange;
 
-                binding.expandedContent.setAlpha(1f - (percentage * 1.5f));
+            binding.expandedContent.setAlpha(1f - (percentage * 1.5f));
 
-                if (percentage >= 0.8f) {
-                    binding.collapsingToolbar.setTitleEnabled(true);
-                } else {
-                    binding.collapsingToolbar.setTitleEnabled(false);
-                }
-            }
+            binding.collapsingToolbar.setTitleEnabled(percentage >= 0.8f);
         });
 
         // --- AGGIUNGI QUI IL LISTENER DELLA CARD PREVISIONI ---
-        binding.tvConditionAndMinMax.setOnClickListener(v -> {
-            requireActivity().getSupportFragmentManager().beginTransaction()
-                    .setCustomAnimations(
-                            android.R.anim.fade_in,
-                            android.R.anim.fade_out,
-                            android.R.anim.fade_in,
-                            android.R.anim.fade_out
-                    )
-                    .replace(R.id.nav_host_fragment_content_main, new ForecastDetailFragment())
-                    .addToBackStack(null)
-                    .commit();
-        });
+        binding.tvConditionAndMinMax.setOnClickListener(v -> requireActivity().getSupportFragmentManager().beginTransaction()
+                .setCustomAnimations(
+                        android.R.anim.fade_in,
+                        android.R.anim.fade_out,
+                        android.R.anim.fade_in,
+                        android.R.anim.fade_out
+                )
+                .replace(R.id.nav_host_fragment_content_main, new ForecastDetailFragment())
+                .addToBackStack(null)
+                .commit());
     }
 
     private void fetchOfficialAlerts() {
-        ApiClient.getApi().getOfficialAlerts(STATION_ID).enqueue(new Callback<OfficialAlertsResponse>() {
+        ApiClient.getApi().getOfficialAlerts(STATION_ID).enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<OfficialAlertsResponse> call, Response<OfficialAlertsResponse> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().success) {
@@ -221,7 +217,7 @@ public class FirstFragment extends Fragment {
     }
 
     private void fetchForecast() {
-        ApiClient.getApi().getForecast(STATION_ID, "base").enqueue(new Callback<ForecastResponse>() {
+        ApiClient.getApi().getForecast(STATION_ID, "base").enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<ForecastResponse> call, Response<ForecastResponse> response) {
                 if (response.isSuccessful() && response.body() != null
@@ -242,6 +238,7 @@ public class FirstFragment extends Fragment {
         });
     }
 
+    @SuppressLint("SetTextI18n")
     private void bindForecast(ForecastResponse.Forecast f) {
         if (binding == null) return;
         binding.tvConditionAndMinMax.setText(f.icon + " " + f.label);
@@ -318,7 +315,7 @@ public class FirstFragment extends Fragment {
             bindWeatherData(cached, true);
         }
 
-        ApiClient.getApi().getLatest(STATION_ID, "base").enqueue(new Callback<StationData>() {
+        ApiClient.getApi().getLatest(STATION_ID, "base").enqueue(new Callback<>() {
             @Override
             public void onResponse(Call<StationData> call, Response<StationData> response) {
                 android.util.Log.d("LegmaSky", "Risposta HTTP: " + response.code());
@@ -382,7 +379,7 @@ public class FirstFragment extends Fragment {
         }
     }
 
-    @SuppressLint("SetTextI18n")
+    @SuppressLint({"SetTextI18n", "DefaultLocale"})
     private void bindWeatherData(StationData.LastData data, boolean isFromCache) {
         if (binding == null) return;
 

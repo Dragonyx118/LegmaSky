@@ -3,8 +3,9 @@
     <!-- Stile Nome Città -->
     <style name="WeatherCityTitle">
         <item name="android:textColor">#FFFFFF</item>
-        <item name="android:textSize">28sp</item>
-        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
     </style>
 
     <!-- Stile Temperatura Principale Imponente -->

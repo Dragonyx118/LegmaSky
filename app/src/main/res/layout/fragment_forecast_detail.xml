@@ -37,6 +37,45 @@
             app:title="Previsioni 5 Giorni"
             app:titleTextColor="@android:color/white" />
 
+        <!-- Banner Avviso Cache Offline -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardOfflineNotice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="8dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="#80000000"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#80FFA000"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="10dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:text="⚠️"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/tvOfflineNotice"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="#FFECB3"
+                    android:textSize="13sp"
+                    tools:text="Dati in cache offline. Ultimo aggiornamento: 2 ore fa" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- 1. SELETTORE DEI GIORNI (Orizzontale) -->
         <TextView
             android:layout_width="wrap_content"

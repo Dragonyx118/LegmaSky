@@ -46,7 +46,6 @@ public class ForecastDetailFragment extends Fragment {
             }
         });
 
-        // Sfondo dinamico basato su ora e mese corrente (identico alla logica di FirstFragment)
         // --- LOGICA DI SFONDO DINAMICO COERENTE CON FIRSTFRAGMENT ---
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
@@ -71,7 +70,7 @@ public class ForecastDetailFragment extends Fragment {
 
         binding.backgroundImage.setImageResource(backgroundRes);
 
-        // Chiamata di rete per recuperare le previsioni estese reali dal server
+        // Recupera le previsioni estese (da rete con fallback automatico su cache offline)
         fetchExtendedForecast();
     }
 
@@ -80,26 +79,92 @@ public class ForecastDetailFragment extends Fragment {
             @Override
             public void onResponse(@NonNull Call<ForecastExtendedResponse> call, @NonNull Response<ForecastExtendedResponse> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().forecast_days != null) {
-                    List<ForecastExtendedResponse.DayForecast> days = response.body().forecast_days;
-                    setupAdapters(days);
-                } else {
-                    // STAMPA L'ERRORE HTTP ESATTO NEI LOG
-                    android.util.Log.e("LegmaSky", "Errore HTTP forecast esteso: " + response.code() + " - " + response.message());
-                    try {
-                        if (response.errorBody() != null) {
-                            android.util.Log.e("LegmaSky", "Body errore: " + response.errorBody().string());
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    ForecastExtendedResponse data = response.body();
+
+                    // 1. Salva la cache fresca
+                    ForecastCacheManager.saveForecast(requireContext(), data);
+
+                    // 2. Nascondi il banner dell'avviso offline (i dati sono online)
+                    if (binding != null) {
+                        binding.cardOfflineNotice.setVisibility(View.GONE);
                     }
+
+                    // 3. Popola gli adapter
+                    setupAdapters(data.forecast_days);
+                } else {
+                    android.util.Log.e("LegmaSky", "Errore HTTP forecast esteso: " + response.code());
+                    loadFromCacheOrFallback();
                 }
             }
 
             @Override
             public void onFailure(@NonNull Call<ForecastExtendedResponse> call, @NonNull Throwable t) {
-                android.util.Log.e("LegmaSky", "Fallimento di rete forecast esteso: " + t.getMessage(), t);
+                android.util.Log.e("LegmaSky", "Fallimento di rete forecast esteso: " + t.getMessage());
+                loadFromCacheOrFallback();
             }
         });
+    }
+
+    private void loadFromCacheOrFallback() {
+        if (!isAdded() || getContext() == null || binding == null) return;
+
+        ForecastExtendedResponse cachedData = ForecastCacheManager.loadCachedForecast(requireContext());
+        if (cachedData != null && cachedData.forecast_days != null && !cachedData.forecast_days.isEmpty()) {
+
+            // --- MOSTRA E CONFIGURA IL BANNER OFFLINE ---
+            String timeAgo = ForecastCacheManager.getFormattedTimeAgo(requireContext());
+            binding.tvOfflineNotice.setText("Dati in cache (offline). Ultimo aggiornamento: " + timeAgo);
+            binding.cardOfflineNotice.setVisibility(View.VISIBLE);
+
+            // --- LOGICA DI SCORRIMENTO DEI GIORNI SCADUTI ---
+            long cacheTimestamp = ForecastCacheManager.getCacheTimestamp(requireContext());
+            long now = System.currentTimeMillis();
+            long diffMillis = now - cacheTimestamp;
+            int diffDays = (int) (diffMillis / (1000L * 60L * 60L * 24L));
+
+            List<ForecastExtendedResponse.DayForecast> days = cachedData.forecast_days;
+
+            if (diffDays > 0) {
+                // Rimuovi i giorni ormai trascorsi dall'inizio
+                for (int i = 0; i < diffDays && !days.isEmpty(); i++) {
+                    days.remove(0);
+                }
+
+                // Aggiorna i nomi dei giorni rimasti
+                for (int i = 0; i < days.size(); i++) {
+                    if (i == 0) days.get(i).dayName = "Oggi";
+                    else if (i == 1) days.get(i).dayName = "Domani";
+                }
+
+                // Completa fino a 5 giorni marcandoli con "No data"
+                while (days.size() < 5) {
+                    ForecastExtendedResponse.DayForecast noDataDay = new ForecastExtendedResponse.DayForecast();
+                    int dayIndex = days.size();
+                    noDataDay.dayName = (dayIndex == 0) ? "Oggi" : (dayIndex == 1 ? "Domani" : "Giorno +" + (dayIndex + 1));
+                    noDataDay.tempRange = "No data";
+                    noDataDay.icon = "❓";
+                    noDataDay.hourlyList = new java.util.ArrayList<>();
+
+                    for (int h = 0; h < 24; h++) {
+                        ForecastExtendedResponse.HourlyForecast hItem = new ForecastExtendedResponse.HourlyForecast();
+                        hItem.time = String.format(java.util.Locale.getDefault(), "%02d:00", h);
+                        hItem.condition = "No data";
+                        hItem.temp = "N/D";
+                        hItem.rain = "N/D";
+                        hItem.icon = "❓";
+                        noDataDay.hourlyList.add(hItem);
+                    }
+
+                    days.add(noDataDay);
+                }
+            }
+
+            setupAdapters(days);
+        } else {
+            android.util.Log.e("LegmaSky", "Nessuna cache locale disponibile.");
+            binding.tvOfflineNotice.setText("Connessione assente. Nessun dato in cache.");
+            binding.cardOfflineNotice.setVisibility(View.VISIBLE);
+        }
     }
 
     private void setupAdapters(List<ForecastExtendedResponse.DayForecast> days) {
@@ -197,6 +262,7 @@ public class ForecastDetailFragment extends Fragment {
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            if (items == null) return;
             ForecastExtendedResponse.HourlyForecast item = items.get(position);
             holder.tvHour.setText(item.time);
             holder.tvWeatherIcon.setText(item.icon);
@@ -210,7 +276,7 @@ public class ForecastDetailFragment extends Fragment {
         }
 
         @Override
-        public int getItemCount() { return items.size(); }
+        public int getItemCount() { return items != null ? items.size() : 0; }
 
         static class ViewHolder extends RecyclerView.ViewHolder {
             TextView tvHour, tvWeatherIcon, tvCondition, tvTemp, tvRain;

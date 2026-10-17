@@ -9,49 +9,25 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.legmasky.databinding.FragmentForecastDetailBinding;
+import com.example.legmasky.model.ForecastExtendedResponse;
+import com.example.legmasky.network.ApiClient;
 import com.google.android.material.card.MaterialCardView;
 
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class ForecastDetailFragment extends Fragment {
 
+    private static final String STATION_ID = "station-001";
     private FragmentForecastDetailBinding binding;
-
-    // Modelli temporanei per dati Mock
-    public static class DayForecastMock {
-        public String dayName;
-        public String icon;
-        public String tempRange;
-        public List<HourlyForecastMock> hourlyList;
-
-        public DayForecastMock(String dayName, String icon, String tempRange, List<HourlyForecastMock> hourlyList) {
-            this.dayName = dayName;
-            this.icon = icon;
-            this.tempRange = tempRange;
-            this.hourlyList = hourlyList;
-        }
-    }
-
-    public static class HourlyForecastMock {
-        public String time;
-        public String icon;
-        public String temp;
-        public String wind;
-
-        public HourlyForecastMock(String time, String icon, String temp, String wind) {
-            this.time = time;
-            this.icon = icon;
-            this.temp = temp;
-            this.wind = wind;
-        }
-    }
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -65,60 +41,95 @@ public class ForecastDetailFragment extends Fragment {
 
         // Configura la toolbar
         binding.toolbar.setNavigationOnClickListener(v -> {
-            if (getActivity() instanceof androidx.appcompat.app.AppCompatActivity) {
-                ((androidx.appcompat.app.AppCompatActivity) getActivity()).getOnBackPressedDispatcher().onBackPressed();
+            if (getActivity() != null) {
+                requireActivity().getOnBackPressedDispatcher().onBackPressed();
             }
         });
 
-        // Genera dati Template/Mock a 5 giorni con orari
-        List<DayForecastMock> days = generateMockData();
+        // Sfondo dinamico basato su ora e mese corrente (identico alla logica di FirstFragment)
+        // --- LOGICA DI SFONDO DINAMICO COERENTE CON FIRSTFRAGMENT ---
+        Calendar calendar = Calendar.getInstance();
+        int hour = calendar.get(Calendar.HOUR_OF_DAY);
+        int month = calendar.get(Calendar.MONTH); // 0 = Gennaio, 11 = Dicembre
 
-        // Configura il selettore dei giorni
+        int backgroundRes;
+        if (hour >= 5 && hour <= 6) {
+            backgroundRes = R.drawable.bg_sunrise_clear;
+        } else if (hour >= 7 && hour <= 8) {
+            backgroundRes = R.drawable.bg_morning_cloudy;
+        } else if (hour >= 9 && hour <= 17) {
+            backgroundRes = getDayBackgroundBySeason(month);
+        } else if (hour >= 18 && hour <= 19) {
+            backgroundRes = R.drawable.bg_first_sunset_clear;
+        } else if (hour == 20) {
+            backgroundRes = R.drawable.bg_late_sunset_clear;
+        } else if (hour >= 21 && hour <= 22) {
+            backgroundRes = R.drawable.bg_first_night_clear;
+        } else {
+            backgroundRes = R.drawable.bg_night_clear;
+        }
+
+        binding.backgroundImage.setImageResource(backgroundRes);
+
+        // Chiamata di rete per recuperare le previsioni estese reali dal server
+        fetchExtendedForecast();
+    }
+
+    private void fetchExtendedForecast() {
+        ApiClient.getApi().getExtendedForecast(STATION_ID, "base").enqueue(new Callback<>() {
+            @Override
+            public void onResponse(@NonNull Call<ForecastExtendedResponse> call, @NonNull Response<ForecastExtendedResponse> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().forecast_days != null) {
+                    List<ForecastExtendedResponse.DayForecast> days = response.body().forecast_days;
+                    setupAdapters(days);
+                } else {
+                    // STAMPA L'ERRORE HTTP ESATTO NEI LOG
+                    android.util.Log.e("LegmaSky", "Errore HTTP forecast esteso: " + response.code() + " - " + response.message());
+                    try {
+                        if (response.errorBody() != null) {
+                            android.util.Log.e("LegmaSky", "Body errore: " + response.errorBody().string());
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<ForecastExtendedResponse> call, @NonNull Throwable t) {
+                android.util.Log.e("LegmaSky", "Fallimento di rete forecast esteso: " + t.getMessage(), t);
+            }
+        });
+    }
+
+    private void setupAdapters(List<ForecastExtendedResponse.DayForecast> days) {
+        if (binding == null) return;
+
+        // Configura il selettore dei giorni orizzontale
         DayAdapter dayAdapter = new DayAdapter(days, (selectedDay, position) -> {
-            binding.tvSelectedDayTitle.setText("Previsione oraria per " + selectedDay.dayName);
             HourlyAdapter hourlyAdapter = new HourlyAdapter(selectedDay.hourlyList);
             binding.rvHourly.setAdapter(hourlyAdapter);
         });
 
         binding.rvDays.setAdapter(dayAdapter);
 
-        // Seleziona di default il primo giorno
+        // Seleziona di default il primo giorno (Oggi)
         if (!days.isEmpty()) {
-            binding.tvSelectedDayTitle.setText("Previsione oraria per " + days.get(0).dayName);
             binding.rvHourly.setAdapter(new HourlyAdapter(days.get(0).hourlyList));
         }
     }
 
-    // --- TEMPLATE DATA GENERATOR ---
-    private List<DayForecastMock> generateMockData() {
-        List<DayForecastMock> list = new ArrayList<>();
-        String[] weekDays = {"Oggi", "Domani", "Mercoledì", "Giovedì", "Venerdì"};
-        String[] icons = {"☀️", "⛅", "🌧️", "🌤️", "⛈️"};
-
-        for (int i = 0; i < 5; i++) {
-            List<HourlyForecastMock> hours = new ArrayList<>();
-            for (int h = 0; h < 24; h += 3) {
-                String timeStr = String.format("%02d:00", h);
-                int mockTemp = 15 + (int) (Math.sin(h / 3.0) * 8);
-                int mockWind = 5 + (h * 2) % 15;
-                hours.add(new HourlyForecastMock(timeStr, icons[i], mockTemp + "°C", "💨 " + mockWind + " km/h"));
-            }
-            list.add(new DayForecastMock(weekDays[i], icons[i], "22° / 14°", hours));
-        }
-        return list;
-    }
-
     // --- ADAPTER GIORNI (ORIZZONTALE) ---
     private static class DayAdapter extends RecyclerView.Adapter<DayAdapter.ViewHolder> {
-        private final List<DayForecastMock> items;
+        private final List<ForecastExtendedResponse.DayForecast> items;
         private final OnDayClickListener listener;
         private int selectedPosition = 0;
 
         interface OnDayClickListener {
-            void onDayClick(DayForecastMock day, int position);
+            void onDayClick(ForecastExtendedResponse.DayForecast day, int position);
         }
 
-        public DayAdapter(List<DayForecastMock> items, OnDayClickListener listener) {
+        public DayAdapter(List<ForecastExtendedResponse.DayForecast> items, OnDayClickListener listener) {
             this.items = items;
             this.listener = listener;
         }
@@ -132,7 +143,7 @@ public class ForecastDetailFragment extends Fragment {
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            DayForecastMock day = items.get(position);
+            ForecastExtendedResponse.DayForecast day = items.get(position);
             holder.tvDayName.setText(day.dayName);
             holder.tvDayIcon.setText(day.icon);
             holder.tvDayTemp.setText(day.tempRange);
@@ -143,10 +154,12 @@ public class ForecastDetailFragment extends Fragment {
 
             holder.itemView.setOnClickListener(v -> {
                 int previous = selectedPosition;
-                selectedPosition = holder.getAdapterPosition();
-                notifyItemChanged(previous);
-                notifyItemChanged(selectedPosition);
-                listener.onDayClick(day, selectedPosition);
+                selectedPosition = holder.getAbsoluteAdapterPosition();
+                if (selectedPosition != RecyclerView.NO_POSITION) {
+                    notifyItemChanged(previous);
+                    notifyItemChanged(selectedPosition);
+                    listener.onDayClick(day, selectedPosition);
+                }
             });
         }
 
@@ -169,9 +182,9 @@ public class ForecastDetailFragment extends Fragment {
 
     // --- ADAPTER METEO ORARIO (VERTICALE) ---
     private static class HourlyAdapter extends RecyclerView.Adapter<HourlyAdapter.ViewHolder> {
-        private final List<HourlyForecastMock> items;
+        private final List<ForecastExtendedResponse.HourlyForecast> items;
 
-        public HourlyAdapter(List<HourlyForecastMock> items) {
+        public HourlyAdapter(List<ForecastExtendedResponse.HourlyForecast> items) {
             this.items = items;
         }
 
@@ -184,25 +197,31 @@ public class ForecastDetailFragment extends Fragment {
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            HourlyForecastMock item = items.get(position);
+            ForecastExtendedResponse.HourlyForecast item = items.get(position);
             holder.tvHour.setText(item.time);
             holder.tvWeatherIcon.setText(item.icon);
+            if (holder.tvCondition != null) {
+                holder.tvCondition.setText(item.condition);
+            }
             holder.tvTemp.setText(item.temp);
-            holder.tvWind.setText(item.wind);
+            if (holder.tvRain != null) {
+                holder.tvRain.setText(item.rain);
+            }
         }
 
         @Override
         public int getItemCount() { return items.size(); }
 
         static class ViewHolder extends RecyclerView.ViewHolder {
-            TextView tvHour, tvWeatherIcon, tvTemp, tvWind;
+            TextView tvHour, tvWeatherIcon, tvCondition, tvTemp, tvRain;
 
             ViewHolder(View v) {
                 super(v);
                 tvHour = v.findViewById(R.id.tvHour);
                 tvWeatherIcon = v.findViewById(R.id.tvWeatherIcon);
+                tvCondition = v.findViewById(R.id.tvCondition);
                 tvTemp = v.findViewById(R.id.tvTemp);
-                tvWind = v.findViewById(R.id.tvWind);
+                tvRain = v.findViewById(R.id.tvRain);
             }
         }
     }
@@ -211,5 +230,15 @@ public class ForecastDetailFragment extends Fragment {
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+    }
+
+    private int getDayBackgroundBySeason(int month) {
+        if (month == 11 || month == 0 || month == 1) {
+            return R.drawable.bg_winter_foggy;
+        } else if (month >= 8 && month <= 10) {
+            return R.drawable.bg_autumn_clear;
+        } else {
+            return R.drawable.bg_summer_clear;
+        }
     }
 }

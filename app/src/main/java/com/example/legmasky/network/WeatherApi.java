@@ -1,5 +1,6 @@
 package com.example.legmasky.network;
 
+import com.example.legmasky.model.ForecastExtendedResponse;
 import com.example.legmasky.model.StationData;
 import com.example.legmasky.model.ForecastResponse;
 import com.example.legmasky.model.OfficialAlertsResponse;
@@ -17,6 +18,12 @@ public interface WeatherApi {
 
     @GET("data/{station_id}/forecast")
     Call<ForecastResponse> getForecast(
+            @Path("station_id") String stationId,
+            @Query("module") String module
+    );
+
+    @GET("data/{station_id}/extended-forecast")
+    Call<ForecastExtendedResponse> getExtendedForecast(
             @Path("station_id") String stationId,
             @Query("module") String module
     );

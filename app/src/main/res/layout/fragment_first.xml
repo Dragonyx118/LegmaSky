@@ -147,15 +147,19 @@
                     android:layout_marginBottom="10dp"
                     android:visibility="gone" />
 
-                <!-- Card Previsioni a 5 giorni -->
+                <!-- Card Previsioni a 5 giorni interattiva -->
                 <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardForecastContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
                     app:cardBackgroundColor="#252E3A6B"
                     app:cardCornerRadius="24dp"
                     app:cardElevation="0dp"
-                    app:strokeWidth="0dp">
+                    app:strokeWidth="0dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -180,28 +184,31 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_alignParentEnd="true"
-                                android:text="Altri dettagli ›"
-                                android:textColor="#A8AFD1"
-                                android:textSize="14sp" />
+                                android:text="Dettagli ›"
+                                android:textColor="#5B9BF0"
+                                android:textSize="14sp"
+                                android:textStyle="bold" />
                         </RelativeLayout>
 
+                        <!-- Riga preview giorno 1 -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center_vertical"
-                            android:paddingVertical="10dp">
+                            android:paddingVertical="8dp">
 
                             <TextView
                                 android:layout_width="60dp"
                                 android:layout_height="wrap_content"
-                                android:text="Mer"
+                                android:text="Oggi"
                                 android:textColor="@android:color/white"
-                                android:textSize="16sp" />
+                                android:textSize="15sp"
+                                android:textStyle="bold" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="🌙"
+                                android:text="☀️"
                                 android:textSize="18sp" />
 
                             <View
@@ -212,23 +219,25 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="15°   ━━━━  25°"
-                                android:textColor="@android:color/white"
-                                android:textSize="15sp" />
+                                android:text="14°   ━━━━  24°"
+                                android:textColor="#E2E8F0"
+                                android:textSize="14sp" />
                         </LinearLayout>
 
+                        <!-- Riga preview giorno 2 -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:gravity="center_vertical"
-                            android:paddingVertical="10dp">
+                            android:paddingVertical="8dp">
 
                             <TextView
                                 android:layout_width="60dp"
                                 android:layout_height="wrap_content"
-                                android:text="Gio"
+                                android:text="Dom"
                                 android:textColor="@android:color/white"
-                                android:textSize="16sp" />
+                                android:textSize="15sp"
+                                android:textStyle="bold" />
 
                             <TextView
                                 android:layout_width="wrap_content"
@@ -245,8 +254,8 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="15°   ━━━━  25°"
-                                android:textColor="@android:color/white"
-                                android:textSize="15sp" />
+                                android:textColor="#E2E8F0"
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                     </LinearLayout>

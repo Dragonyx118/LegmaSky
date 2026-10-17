@@ -123,8 +123,7 @@ public class FirstFragment extends Fragment {
             binding.collapsingToolbar.setTitleEnabled(percentage >= 0.8f);
         });
 
-        // --- AGGIUNGI QUI IL LISTENER DELLA CARD PREVISIONI ---
-        binding.tvConditionAndMinMax.setOnClickListener(v -> requireActivity().getSupportFragmentManager().beginTransaction()
+        binding.cardForecastContainer.setOnClickListener(v -> requireActivity().getSupportFragmentManager().beginTransaction()
                 .setCustomAnimations(
                         android.R.anim.fade_in,
                         android.R.anim.fade_out,

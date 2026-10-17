@@ -3,33 +3,36 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="false">
 
-    <!-- Sfondo Sfondato/Sfondato Dinamico -->
+    <!-- SFONDO A SCHERMO INTERO (Senza barre nere, identico al primo fragment) -->
     <ImageView
         android:id="@+id/backgroundImage"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
-        android:src="@drawable/bg_summer_clear"
-        android:contentDescription="Sfondo Meteo" />
+        android:contentDescription="Sfondo Meteo"
+        tools:src="@drawable/bg_summer_clear" />
 
-    <!-- Overlay semitrasparente scuro per leggibilità -->
+    <!-- LAYER TRASLUCIDO PER EFFETTO SFOCATURA/VETRO (Niente oscuramento scuro) -->
     <View
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#4D000000" />
+        android:background="#1F000000" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:paddingTop="48dp"> <!-- Spazio dinamico per scendere sotto la barra di stato/fotocamera -->
 
-        <!-- Toolbar con freccia Indietro -->
+        <!-- Toolbar trasparente con pulsante indietro -->
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:background="@android:color/transparent"
             app:navigationIcon="@android:drawable/ic_menu_revert"
             app:title="Previsioni 5 Giorni"
             app:titleTextColor="@android:color/white" />
@@ -42,7 +45,7 @@
             android:layout_marginTop="8dp"
             android:layout_marginEnd="16dp"
             android:text="SELEZIONA GIORNO"
-            android:textColor="#B3FFFFFF"
+            android:textColor="#E0E0E0"
             android:textSize="12sp"
             android:textStyle="bold" />
 
@@ -57,12 +60,12 @@
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             tools:listitem="@layout/item_day_selector" />
 
-        <!-- Divisore leggero -->
+        <!-- Divisore sfumato -->
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:layout_marginVertical="8dp"
-            android:background="#33FFFFFF" />
+            android:background="#22FFFFFF" />
 
         <!-- 2. METEO ORARIO PER IL GIORNO SELEZIONATO (Verticale) -->
         <TextView

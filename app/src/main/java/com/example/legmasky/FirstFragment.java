@@ -25,9 +25,12 @@ import androidx.fragment.app.Fragment;
 import androidx.palette.graphics.Palette;
 
 import com.example.legmasky.databinding.FragmentFirstBinding;
+import com.example.legmasky.model.AqiResponse;
 import com.example.legmasky.model.ForecastResponse;
 import com.example.legmasky.model.OfficialAlertsResponse;
 import com.example.legmasky.model.StationData;
+import com.example.legmasky.model.SunInfo;
+import com.example.legmasky.network.AqiApiClient;
 import com.example.legmasky.network.ApiClient;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -60,6 +63,10 @@ public class FirstFragment extends Fragment {
     private static final long ALERTS_REFRESH_INTERVAL_MS = 60 * 1000;
 
     private FusedLocationProviderClient fusedLocationClient;
+
+    // Ultima posizione nota, usata per interrogare l'AQI (WAQI non ha dati dal sensore stazione)
+    private Double lastKnownLat;
+    private Double lastKnownLon;
 
     @Override
     public View onCreateView(
@@ -96,6 +103,9 @@ public class FirstFragment extends Fragment {
             fetchWeatherData();
             fetchForecast();
             fetchOfficialAlerts();
+            if (lastKnownLat != null && lastKnownLon != null) {
+                fetchAqi(lastKnownLat, lastKnownLon);
+            }
         });
 
         binding.swipeRefreshLayout.setEnabled(false);
@@ -231,7 +241,7 @@ public class FirstFragment extends Fragment {
             public void onFailure(Call<ForecastResponse> call, Throwable t) {
                 android.util.Log.e("LegmaSky", "Errore chiamata forecast: " + t.getMessage(), t);
                 if (binding != null) {
-                    binding.swipeRefreshLayout.setRefreshing(false); // <--- AGGIUNGI QUI
+                    binding.swipeRefreshLayout.setRefreshing(false);
                 }
             }
         });
@@ -252,7 +262,10 @@ public class FirstFragment extends Fragment {
         }
         fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
             if (location != null) {
+                lastKnownLat = location.getLatitude();
+                lastKnownLon = location.getLongitude();
                 resolveCityName(location.getLatitude(), location.getLongitude());
+                fetchAqi(location.getLatitude(), location.getLongitude());
             } else {
                 android.util.Log.e("LegmaSky", "Location nulla: GPS non ancora disponibile o disattivato");
                 if (binding != null) binding.tvCityName.setText("Posizione non disponibile");
@@ -308,6 +321,52 @@ public class FirstFragment extends Fragment {
         }).start();
     }
 
+    // =====================================================================
+    // AQI (WAQI) — qualità dell'aria da servizio online in base alla posizione GPS
+    // =====================================================================
+
+    private void fetchAqi(double lat, double lon) {
+        String coords = "geo:" + lat + ";" + lon;
+        AqiApiClient.getApi().getAqi(coords, AqiApiClient.WAQI_TOKEN).enqueue(new Callback<>() {
+            @Override
+            public void onResponse(Call<AqiResponse> call, Response<AqiResponse> response) {
+                if (response.isSuccessful() && response.body() != null
+                        && "ok".equals(response.body().status) && response.body().data != null) {
+                    bindAqi(response.body().data.aqi);
+                } else {
+                    android.util.Log.e("LegmaSky", "AQI non disponibile per questa posizione");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<AqiResponse> call, Throwable t) {
+                android.util.Log.e("LegmaSky", "Errore chiamata AQI: " + t.getMessage(), t);
+            }
+        });
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void bindAqi(int aqi) {
+        if (binding == null) return;
+        String icon = iconForAqi(aqi);
+        String text = icon + " AQI " + aqi;
+        binding.tvAqiBadge.setText(text);
+        binding.tvAqiFullTitle.setText(text);
+    }
+
+    private String iconForAqi(int aqi) {
+        if (aqi <= 50) return "🍃";        // Buona
+        if (aqi <= 100) return "🙂";       // Moderata
+        if (aqi <= 150) return "😷";       // Nociva per gruppi sensibili
+        if (aqi <= 200) return "⚠️";       // Nociva
+        if (aqi <= 300) return "☠️";       // Molto nociva
+        return "🆘";                        // Pericolosa
+    }
+
+    // =====================================================================
+    // Dati stazione (temperatura, umidità, lux, percepita, pressione, vento, sole)
+    // =====================================================================
+
     private void fetchWeatherData() {
         StationData.LastData cached = WeatherCache.load(requireContext());
         if (cached != null) {
@@ -322,10 +381,11 @@ public class FirstFragment extends Fragment {
                     StationData.LastData data = response.body().data;
                     WeatherCache.save(requireContext(), data);
                     bindWeatherData(data, false);
+                    bindSunData(response.body().sun);
                 } else {
                     android.util.Log.e("LegmaSky", "Risposta non valida. Mantengo ultimi dati in cache.");
                     if (binding != null) {
-                        binding.swipeRefreshLayout.setRefreshing(false); // <--- AGGIUNGI QUI
+                        binding.swipeRefreshLayout.setRefreshing(false);
                     }
                     showStaleDataWarning();
                 }
@@ -382,7 +442,6 @@ public class FirstFragment extends Fragment {
     private void bindWeatherData(StationData.LastData data, boolean isFromCache) {
         if (binding == null) return;
 
-
         binding.swipeRefreshLayout.setRefreshing(false);
 
         binding.tvPressureValue.setText(Math.round(data.pressure) + " hPa");
@@ -398,10 +457,39 @@ public class FirstFragment extends Fragment {
         binding.tvWindValue.setText(String.valueOf(data.wind_speed));
         binding.lblWindDir.setText(windDirectionLabel(data.wind_direction));
 
-        binding.tvUvValue.setText("N/D");
-        binding.tvFeelsLikeValue.setText("N/D");
+        binding.tvLuxValue.setText(Math.round(data.lux) + " lux");
+
+        if (data.feels_like != null) {
+            binding.tvFeelsLikeValue.setText(String.format("%.1f°", data.feels_like));
+        } else {
+            binding.tvFeelsLikeValue.setText("N/D");
+        }
 
         updateDynamicBackground(false, false);
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void bindSunData(SunInfo sun) {
+        if (binding == null || sun == null) return;
+
+        String sunrise = formatIsoTimeToHHmm(sun.sunrise);
+        String sunset = formatIsoTimeToHHmm(sun.sunset);
+
+        binding.tvSunriseValue.setText(sunrise != null ? sunrise : "--:--");
+        binding.tvSunsetValue.setText(sunset != null ? sunset : "--:--");
+    }
+
+    /**
+     * Estrae "HH:MM" da una stringa ISO 8601 tipo "2026-11-01T07:00:29.542814+01:00".
+     * Non usa java.time (richiederebbe minSdk 26+): il formato ISO ha sempre l'ora
+     * subito dopo la "T", quindi basta una sottostringa a posizione fissa, senza
+     * bisogno di gestire microsecondi variabili o il formato dell'offset del fuso.
+     */
+    private String formatIsoTimeToHHmm(String isoDateTime) {
+        if (isoDateTime == null) return null;
+        int tIndex = isoDateTime.indexOf('T');
+        if (tIndex == -1 || isoDateTime.length() < tIndex + 6) return null;
+        return isoDateTime.substring(tIndex + 1, tIndex + 6); // "HH:MM"
     }
 
     private String windDirectionLabel(double degrees) {

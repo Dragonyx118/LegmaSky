@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.legmasky"
         minSdk = 24
         targetSdk = 37
-        versionCode = 155
-        versionName = "1.5.5"
+        versionCode = 160
+        versionName = "1.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

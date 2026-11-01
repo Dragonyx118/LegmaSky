@@ -268,7 +268,7 @@
                     android:columnCount="2"
                     android:rowCount="2">
 
-                    <!-- CARD UV -->
+                    <!-- CARD LUX -->
                     <com.google.android.material.card.MaterialCardView
                         android:layout_width="0dp"
                         android:layout_height="155dp"
@@ -285,20 +285,20 @@
                             android:padding="16dp">
 
                             <TextView
-                                android:id="@+id/lblUv"
+                                android:id="@+id/lblLux"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="UV"
+                                android:text="Luce"
                                 android:textColor="#A8AFD1"
                                 android:textSize="14sp" />
 
                             <TextView
-                                android:id="@+id/tvUvValue"
+                                android:id="@+id/tvLuxValue"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_below="@id/lblUv"
+                                android:layout_below="@id/lblLux"
                                 android:layout_marginTop="4dp"
-                                android:text="Bassa"
+                                android:text="-- lux"
                                 android:textColor="@android:color/white"
                                 android:textSize="22sp"
                                 android:textStyle="bold" />
@@ -310,6 +310,7 @@
                                 android:layout_alignParentEnd="true" />
                         </RelativeLayout>
                     </com.google.android.material.card.MaterialCardView>
+
 
                     <!-- CARD UMIDITÀ -->
                     <com.google.android.material.card.MaterialCardView
@@ -486,6 +487,79 @@
                             android:src="@android:drawable/ic_menu_compass"
                             app:tint="#5B9BF0" />
                     </RelativeLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="6dp"
+                    app:cardBackgroundColor="#252E3A6B"
+                    app:cardCornerRadius="24dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="18dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/lblSunrise"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🌅 Alba"
+                                android:textColor="#A8AFD1"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:id="@+id/tvSunriseValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="--:--"
+                                android:textColor="@android:color/white"
+                                android:textSize="22sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="match_parent"
+                            android:background="#33FFFFFF" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="18dp"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/lblSunset"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="🌇 Tramonto"
+                                android:textColor="#A8AFD1"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:id="@+id/tvSunsetValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="--:--"
+                                android:textColor="@android:color/white"
+                                android:textSize="22sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                    </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
                 <!-- CARD AQI ESTESA IN BASSO -->
